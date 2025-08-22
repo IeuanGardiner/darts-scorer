@@ -4,10 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Darts Scorer</title>
-
     <!-- Tailwind CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-
     <!-- Tiny CSS to map the “token” classes used in the app -->
     <style>
       :root { color-scheme: light dark; }
@@ -30,28 +28,13 @@
       .dark .bg-muted { background-color: rgba(39,39,42,0.4); }
     </style>
     <script src="settings.js"></script>
-    <script src="global-header.js" defer></script>
+    <script>
+      setTimeout(() => {
+        window.location.href = 'mode-select.html';
+      }, 3000);
+    </script>
   </head>
-  <body class="bg-background text-foreground">
-    <!-- Header is injected by global-header.js -->
-    <div class="min-h-screen flex flex-col items-center justify-center gap-10 p-4">
-      <h1 class="text-3xl font-bold">Select Game Mode</h1>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-5xl">
-        <a href="quickplay.html" class="relative rounded-2xl bg-card text-card-foreground border border-border p-10 text-center shadow hover:shadow-lg transition">
-          <div class="text-2xl font-semibold mb-2">Quick Play</div>
-          <div class="text-sm opacity-70">Jump right into a leg</div>
-        </a>
-        <button onclick="alert('Training mode coming soon!')" class="relative rounded-2xl bg-card text-card-foreground border border-border p-10 text-center shadow hover:shadow-lg transition">
-          <div class="text-2xl font-semibold mb-2">Training Mode</div>
-          <div class="text-sm opacity-70">Coming soon</div>
-          <span class="absolute top-3 right-3 text-xs font-medium px-2 py-1 bg-muted rounded-full">Soon</span>
-        </button>
-        <button onclick="alert('Multiplayer coming soon!')" class="relative rounded-2xl bg-card text-card-foreground border border-border p-10 text-center shadow hover:shadow-lg transition">
-          <div class="text-2xl font-semibold mb-2">Multiplayer</div>
-          <div class="text-sm opacity-70">Coming soon</div>
-          <span class="absolute top-3 right-3 text-xs font-medium px-2 py-1 bg-muted rounded-full">Soon</span>
-        </button>
-      </div>
-    </div>
+  <body class="bg-background flex items-center justify-center min-h-screen">
+    <img src="images/DartUpLogoSVG.svg" alt="Darts Scorer Logo" class="h-40 w-auto" />
   </body>
 </html>
