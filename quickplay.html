@@ -40,7 +40,8 @@
   <body class="bg-background text-foreground">
     <div id="root"></div>
 
-    <script type="text/babel">
+      <script type="text/babel" data-type="module">
+      import { SettingsProvider, GlobalHeader, useSettings } from "./settings.js";
       const { useEffect, useMemo, useRef, useState } = React;
 
       /*************************
@@ -52,52 +53,27 @@
       // Classic no 3-dart checkout numbers (bogeys)
       const NO_CHECKOUT_3_DART = new Set([169, 168, 166, 165, 163, 162, 159]);
 
-      const ALL_DOUBLES = Array.from({ length: 20 }, (_, i) => (i + 1) * 2).concat([50]);
+        /*************************
+         * Utility – Local Storage
+         *************************/
 
-      const DEFAULT_SETTINGS = {
-        favouriteDouble: 32, // D16
-        theme: "system",
-        sound: false,
-      };
+        const LS_STATE_KEY = "dartscorer_state_v1";
 
-      /*************************
-       * Utility – Local Storage
-       *************************/
-
-      const LS_STATE_KEY = "dartscorer_state_v1";
-      const LS_SETTINGS_KEY = "dartscorer_settings_v1";
-
-      function loadState() {
-        try {
-          const raw = localStorage.getItem(LS_STATE_KEY);
-          if (!raw) return null;
-          return JSON.parse(raw);
-        } catch {
-          return null;
+        function loadState() {
+          try {
+            const raw = localStorage.getItem(LS_STATE_KEY);
+            if (!raw) return null;
+            return JSON.parse(raw);
+          } catch {
+            return null;
+          }
         }
-      }
 
-      function saveState(state) {
-        try {
-          localStorage.setItem(LS_STATE_KEY, JSON.stringify(state));
-        } catch {}
-      }
-
-      function loadSettings() {
-        try {
-          const raw = localStorage.getItem(LS_SETTINGS_KEY);
-          if (!raw) return DEFAULT_SETTINGS;
-          return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
-        } catch {
-          return DEFAULT_SETTINGS;
+        function saveState(state) {
+          try {
+            localStorage.setItem(LS_STATE_KEY, JSON.stringify(state));
+          } catch {}
         }
-      }
-
-      function saveSettings(s) {
-        try {
-          localStorage.setItem(LS_SETTINGS_KEY, JSON.stringify(s));
-        } catch {}
-      }
 
       /*************************
        * Scoring Engine
@@ -422,54 +398,13 @@
         return <div className={`p-4 ${className}`}>{children}</div>;
       }
 
-      /*************************
-       * Hooks: theme & sound
-       *************************/
-
-      function useTheme(setting) {
-        useEffect(() => {
-          const root = document.documentElement;
-          const systemDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
-          const shouldDark = setting === "dark" || (setting === "system" && systemDark);
-          root.classList.toggle("dark", shouldDark);
-        }, [setting]);
-      }
-
-      function useBeep(enabled) {
-        const ctxRef = useRef(null);
-        function play() {
-          if (!enabled) return;
-          try {
-            if (!ctxRef.current) {
-              const AC = window.AudioContext || window.webkitAudioContext;
-              if (!AC) return;
-              ctxRef.current = new AC();
-            }
-            const ctx = ctxRef.current;
-            const o = ctx.createOscillator();
-            const g = ctx.createGain();
-            o.type = "triangle";
-            o.frequency.value = 880;
-            g.gain.value = 0.0025;
-            o.connect(g);
-            g.connect(ctx.destination);
-            o.start();
-            setTimeout(() => o.stop(), 120);
-          } catch {}
-        }
-        return play;
-      }
-
-      /*************************
-       * Main App Component
-       *************************/
+        /*************************
+         * Main App Component
+         *************************/
 
       function MobileScorer() {
         // Settings
-        const [settings, setSettings] = useState(() => loadSettings());
-        useTheme(settings.theme);
-        useEffect(() => saveSettings(settings), [settings]);
-        const beep = useBeep(settings.sound);
+        const { settings, setSettings, playBeep } = useSettings();
 
         // Game state
         const [state, setState] = useState(() => loadState() || { currentScore: START_SCORE, turns: [], status: "playing" });
@@ -482,10 +417,9 @@
           [state.currentScore, currentDarts]
         );
 
-          // UI
-          const [toast, setToast] = useState(null);
-          const toastTimeout = useRef(null);
-          const [showControls, setShowControls] = useState(false);
+        // UI
+        const [toast, setToast] = useState(null);
+        const toastTimeout = useRef(null);
 
         function showToast(msg) {
           setToast(msg);
@@ -532,7 +466,7 @@
 
           if (partial.finished) {
             commitTurn(newDarts, true);
-            beep();
+            playBeep();
             return;
           }
 
@@ -686,12 +620,7 @@
         return (
           <div className="mx-auto max-w-md min-h-[100dvh] bg-background text-foreground p-3 sm:p-4 flex flex-col gap-3">
             {/* App Header */}
-            <header className="flex items-center justify-between">
-              <div className="text-lg font-semibold">Dart Trainer</div>
-              <TwButton size="sm" variant="outline" onClick={() => setShowControls(true)} aria-label="Settings">
-                <span aria-hidden="true">⚙️</span>
-              </TwButton>
-            </header>
+            <GlobalHeader />
 
             {/* Score */}
             <header className="flex items-center justify-between gap-3">
@@ -863,56 +792,6 @@
               </div>
               )}
 
-              {/* Settings Screen */}
-              {showControls && (
-                <div className="fixed inset-0 bg-background text-foreground p-4 z-50 overflow-auto" role="dialog" aria-modal>
-                  <div className="max-w-md mx-auto flex flex-col gap-4">
-                    <div className="flex items-center justify-between">
-                      <div className="text-lg font-semibold">Settings</div>
-                      <TwButton size="sm" variant="outline" onClick={() => setShowControls(false)}>Exit</TwButton>
-                    </div>
-                    <Card>
-                      <CardBody className="flex flex-col gap-3">
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <div className="text-sm font-medium">Favourite double</div>
-                            <div className="text-xs opacity-70">Bias checkout routes (2..40 even, or 50 for Bull)</div>
-                          </div>
-                          <select
-                            aria-label="Favourite double"
-                            value={settings.favouriteDouble}
-                            onChange={(e) => setSettings((s) => ({ ...s, favouriteDouble: parseInt(e.target.value, 10) }))}
-                            className="rounded-xl border bg-background px-3 py-2"
-                          >
-                            {ALL_DOUBLES.map((d) => (
-                              <option key={d} value={d}>{d === 50 ? "Bull (50)" : `D${d/2} (${d})`}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <div className="text-sm font-medium">Theme</div>
-                            <div className="text-xs opacity-70">Follows system by default</div>
-                          </div>
-                          <div className="flex gap-2">
-                            <TwButton variant={settings.theme === "system" ? "solid" : "outline"} onClick={() => setSettings((s) => ({ ...s, theme: "system" }))}>System</TwButton>
-                            <TwButton variant={settings.theme === "light" ? "solid" : "outline"} onClick={() => setSettings((s) => ({ ...s, theme: "light" }))}>Light</TwButton>
-                            <TwButton variant={settings.theme === "dark" ? "solid" : "outline"} onClick={() => setSettings((s) => ({ ...s, theme: "dark" }))}>Dark</TwButton>
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <div className="text-sm font-medium">Sound on checkout</div>
-                            <div className="text-xs opacity-70">Tiny beep when leg is won</div>
-                          </div>
-                          <TwButton variant={settings.sound ? "solid" : "outline"} onClick={() => setSettings((s) => ({ ...s, sound: !s.sound }))}>{settings.sound ? "On" : "Off"}</TwButton>
-                        </div>
-                      </CardBody>
-                    </Card>
-                  </div>
-                </div>
-              )}
-
               {/* Toast */}
               <div className="pointer-events-none fixed bottom-3 inset-x-0 flex justify-center z-40">
                 {toast && (
@@ -976,7 +855,11 @@
       }
 
       // Mount
-      ReactDOM.createRoot(document.getElementById("root")).render(<MobileScorer />);
+      ReactDOM.createRoot(document.getElementById("root")).render(
+        <SettingsProvider>
+          <MobileScorer />
+        </SettingsProvider>
+      );
     </script>
   </body>
 </html>
