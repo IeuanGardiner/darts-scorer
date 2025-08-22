@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
   header.className = 'bg-card text-card-foreground border-b border-border';
   header.innerHTML = `
     <div class="max-w-5xl mx-auto flex items-center justify-between p-4">
-      <a href="index.html">
+      <a href="game-mode.html">
         <img src="images/DartUpLogoSVG.svg" alt="Darts Scorer Logo" class="h-8 w-auto" />
       </a>
       <div class="flex items-center gap-2">
