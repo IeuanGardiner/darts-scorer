@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <h2 id="menuTitle" class="text-2xl font-semibold mb-2">Menu</h2>
         <nav id="globalMenu" class="flex flex-col gap-2" aria-label="Global">
           <a href="quickplay.html" class="block px-4 py-3 rounded text-lg hover:bg-muted focus:bg-muted focus:outline-none">Quick Play</a>
-          <a href="#" data-soon="Training Mode" class="block px-4 py-3 rounded text-lg hover:bg-muted focus:bg-muted focus:outline-none">Training Mode</a>
+          <a href="training-mode.html" class="block px-4 py-3 rounded text-lg hover:bg-muted focus:bg-muted focus:outline-none">Training Mode</a>
           <a href="#" data-soon="Multiplayer" class="block px-4 py-3 rounded text-lg hover:bg-muted focus:bg-muted focus:outline-none">Multiplayer</a>
         </nav>
         <div class="mt-6 text-sm text-muted-foreground">More coming soon.</div>
