@@ -389,43 +389,6 @@
       }
 
       /*************************
-       * Input Parsing & Validation
-       *************************/
-
-      function parseTypedInput(raw) {
-        const s = raw.trim();
-        if (!s) return { ok: false, reason: "Empty" };
-        const upper = s.toUpperCase();
-
-        if (upper === "BULL" || upper === "DBULL" || upper === "D BULL") {
-          return { ok: true, dart: makeDart("BULL", 25) };
-        }
-        if (upper === "OUTER" || upper === "25") {
-          return { ok: true, dart: makeDart("OUTER", 25) };
-        }
-        if (/^\d{1,2}$/.test(upper)) {
-          const n = parseInt(upper, 10);
-          if (n === 0) return { ok: true, dart: makeDart("S", 1) }; // treated as miss later
-          if (n >= 1 && n <= 20) return { ok: true, dart: makeDart("S", n) };
-          if (n === 25) return { ok: true, dart: makeDart("OUTER", 25) };
-          if (n === 50) return { ok: true, dart: makeDart("BULL", 25) };
-          return { ok: false, reason: "Number not allowed" };
-        }
-
-        const m = /^(S|D|T)\s*(\d{1,2})$/.exec(upper);
-        if (m) {
-          const seg = m[1];
-          const val = parseInt(m[2], 10);
-          if (val < 1 || val > 20) return { ok: false, reason: "Value must be 1–20" };
-          if (seg === "T" && val === 25) return { ok: false, reason: "No T25" };
-          if (seg === "D" && val === 25) return { ok: false, reason: "No D25 (use Bull)" };
-          return { ok: true, dart: makeDart(seg, val) };
-        }
-
-        return { ok: false, reason: "Invalid format" };
-      }
-
-      /*************************
        * Simple UI atoms
        *************************/
 
@@ -514,12 +477,10 @@
         const [currentDarts, setCurrentDarts] = useState([]);
         const [bustThisTurn, setBustThisTurn] = useState(false);
 
-        // UI
-        const [tab, setTab] = useState("KEYPAD");
-        const [typedInput, setTypedInput] = useState("");
-        const [typedError, setTypedError] = useState(null);
-        const [toast, setToast] = useState(null);
-        const toastTimeout = useRef(null);
+          // UI
+          const [toast, setToast] = useState(null);
+          const toastTimeout = useRef(null);
+          const [showControls, setShowControls] = useState(false);
 
         function showToast(msg) {
           setToast(msg);
@@ -538,11 +499,9 @@
         const checkoutEligible = isCheckout(state.currentScore, dartsLeftThisTurn);
         const checkoutRoute = checkoutEligible ? getCheckoutRoute(state.currentScore, settings.favouriteDouble, dartsLeftThisTurn) : [];
 
-        // A11y live refs
-        const scoreLiveRef = useRef(null);
-        const hintLiveRef = useRef(null);
-
-        const typeInputRef = useRef(null);
+          // A11y live refs
+          const scoreLiveRef = useRef(null);
+          const hintLiveRef = useRef(null);
 
         useEffect(() => {
           scoreLiveRef.current?.setAttribute("data-score", String(state.currentScore));
@@ -555,10 +514,6 @@
           if (currentDarts.length >= 3) return;
           if (bustThisTurn) return;
 
-          // Treat typed 0 as a miss (points 0)
-          if (d.label === "S1" && d.points === 1 && typedInput.trim() === "0") {
-            d = { ...d, points: 0, label: "0" };
-          }
 
           const newDarts = [...currentDarts, d];
           setCurrentDarts(newDarts);
@@ -598,10 +553,10 @@
           setState(nextState);
           setCurrentDarts([]);
           setBustThisTurn(false);
-          if (finished) {
-            showToast(`Leg won in ${dartsThrown + darts.length} darts – 3DA ${threeDA.toFixed(1)}`);
-          }
-          setTimeout(() => typeInputRef.current?.focus(), 50);
+            if (finished) {
+              showToast(`Leg won in ${dartsThrown + darts.length} darts – 3DA ${threeDA.toFixed(1)}`);
+              resetLeg(true);
+            }
         }
 
         function undoLastDart() {
@@ -617,42 +572,15 @@
           setBustThisTurn(false);
         }
 
-        function resetLeg() {
-          setState({ currentScore: START_SCORE, turns: [], status: "playing" });
-          setCurrentDarts([]);
-          setBustThisTurn(false);
-          showToast("Leg reset");
-        }
-
-        // Typed input handling
-        function onTypedChange(v) {
-          setTypedInput(v);
-          if (!v.trim()) {
-            setTypedError(null);
-            return;
+          function resetLeg(silent = false) {
+            setState({ currentScore: START_SCORE, turns: [], status: "playing" });
+            setCurrentDarts([]);
+            setBustThisTurn(false);
+            if (!silent) showToast("Leg reset");
           }
-          const parsed = parseTypedInput(v);
-          if (!parsed.ok) {
-            setTypedError(parsed.reason);
-          } else {
-            setTypedError(null);
-          }
-        }
 
-        function submitTyped() {
-          if (!typedInput.trim()) return;
-          const parsed = parseTypedInput(typedInput);
-          if (!parsed.ok) {
-            showToast("Invalid entry: " + parsed.reason);
-            return;
-          }
-          addDart(parsed.dart);
-          setTypedInput("");
-          setTypedError(null);
-        }
-
-        // Keypad state
-        const [selectedNumber, setSelectedNumber] = useState(null);
+          // Keypad state
+          const [selectedNumber, setSelectedNumber] = useState(null);
         function tapNumber(n) {
           setSelectedNumber(n);
         }
@@ -720,11 +648,14 @@
           <div className="mx-auto max-w-md min-h-[100dvh] bg-background text-foreground p-3 sm:p-4 flex flex-col gap-3">
             {/* Header / Score */}
             <header className="flex items-center justify-between gap-3">
-              <div>
-                <div className="text-xs opacity-70">Remaining</div>
-                <div aria-live="polite" ref={scoreLiveRef} className="text-5xl font-extrabold tracking-tight">{state.currentScore}</div>
-                <div className="text-xs mt-1 opacity-70">Leg status: {state.status === "playing" ? "In play" : "Won"}</div>
-              </div>
+                <div>
+                  <div className="text-xs opacity-70">Remaining</div>
+                  <div aria-live="polite" ref={scoreLiveRef} className="text-5xl font-extrabold tracking-tight">{state.currentScore}</div>
+                  <div className="flex items-center gap-2 mt-1 text-xs opacity-70">
+                    <span>Leg status: {state.status === "playing" ? "In play" : "Won"}</span>
+                    <TwButton size="sm" variant="outline" onClick={() => resetLeg()}>Reset</TwButton>
+                  </div>
+                </div>
               <div className="text-right">
                 <div className="text-xs opacity-70">Darts this turn</div>
                 <div className="text-2xl font-semibold">{currentDarts.length}/3</div>
@@ -755,13 +686,7 @@
             {/* Turn Entry */}
             <Card>
               <CardBody className="flex flex-col gap-3">
-                {/* Tabs */}
-                <div className="grid grid-cols-2 gap-2">
-                  <TwButton aria-label="Type entry" variant={tab === "TYPE" ? "solid" : "outline"} onClick={() => setTab("TYPE")}>Type</TwButton>
-                  <TwButton aria-label="Keypad entry" variant={tab === "KEYPAD" ? "solid" : "outline"} onClick={() => setTab("KEYPAD")}>Keypad</TwButton>
-                </div>
-
-                {/* Current darts display */}
+                  {/* Current darts display */}
                 <div className="flex items-center gap-2">
                   {[0, 1, 2].map((i) => (
                     <div key={i} className={`flex-1 rounded-xl border p-2 h-12 flex items-center justify-center text-lg ${currentDarts[i] ? "bg-muted" : "opacity-60"}`}>
@@ -777,36 +702,7 @@
                   <TwButton aria-label="Submit turn" className="flex-1" onClick={() => commitTurn(currentDarts, false)} disabled={currentDarts.length === 0 || bustThisTurn}>Submit</TwButton>
                 </div>
 
-                {/* Type Tab */}
-                {tab === "TYPE" && (
-                  <div>
-                    <label htmlFor="typed" className="text-sm font-medium">Enter dart (e.g., T20, D16, 25, Bull)</label>
-                    <div className="mt-1 flex gap-2">
-                      <input
-                        id="typed"
-                        ref={typeInputRef}
-                        value={typedInput}
-                        onChange={(e) => onTypedChange(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") submitTyped();
-                        }}
-                        inputMode="text"
-                        className="flex-1 rounded-xl border px-3 py-2 bg-background"
-                        placeholder="T20"
-                        aria-invalid={!!typedError}
-                        aria-describedby={typedError ? "typed-error" : undefined}
-                      />
-                      <TwButton onClick={submitTyped} aria-label="Add dart">Add</TwButton>
-                    </div>
-                    {typedError && (
-                      <div id="typed-error" className="mt-1 text-sm text-red-500">{typedError}</div>
-                    )}
-                    <div className="mt-2 text-xs opacity-70">Allowed: S/D/T 1–20, 25 (outer), Bull (50), or numbers 1–20/25/50. “D25” invalid.</div>
-                  </div>
-                )}
-
-                {/* Keypad Tab */}
-                {tab === "KEYPAD" && (
+                  {/* Keypad */}
                   <div className="flex flex-col gap-3">
                     <div className="grid grid-cols-5 gap-2">
                       {[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,25,50].map((n) => (
@@ -825,9 +721,8 @@
                       <TwButton className="flex-1" variant="outline" onClick={() => tapSegment("T")} disabled={selectedNumber == null || selectedNumber >= 25}>Treble</TwButton>
                     </div>
                   </div>
-                )}
 
-                {/* Bust banner */}
+                  {/* Bust banner */}
                 {bustThisTurn && (
                   <div role="alert" className="rounded-xl border border-red-400 bg-red-500/10 text-red-600 px-3 py-2 text-sm">BUST – score reverts to {state.currentScore}</div>
                 )}
@@ -868,14 +763,12 @@
               </CardBody>
             </Card>
 
-            {/* Controls */}
-            <Card>
-              <CardBody className="flex flex-col gap-3">
-                <div className="flex items-center justify-between">
+              {/* Controls */}
+              {showControls && (
+              <Card>
+                <CardBody className="flex flex-col gap-3">
                   <div className="font-semibold">Controls</div>
-                  <TwButton variant="outline" onClick={resetLeg}>Reset leg</TwButton>
-                </div>
-                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center justify-between gap-3">
                   <div>
                     <div className="text-sm font-medium">Favourite double</div>
                     <div className="text-xs opacity-70">Bias checkout routes (2..40 even, or 50 for Bull)</div>
@@ -909,10 +802,11 @@
                   </div>
                   <TwButton variant={settings.sound ? "solid" : "outline"} onClick={() => setSettings((s) => ({ ...s, sound: !s.sound }))}>{settings.sound ? "On" : "Off"}</TwButton>
                 </div>
-              </CardBody>
-            </Card>
+                </CardBody>
+              </Card>
+              )}
 
-            {/* Tests & Footer */}
+              {/* Tests & Footer */}
             <div className="mt-auto pb-2">
               <div className="text-xs opacity-70">Tests: {tests.passed}/{tests.total} passed{tests.passed !== tests.total ? ` – ${tests.failed.join(", ")}` : ""}</div>
               <div className="text-[10px] opacity-60 mt-1">Mobile-only UI • Double-out enforced • Edit last 3 turns • Data saved locally</div>
@@ -952,14 +846,17 @@
               </div>
             )}
 
-            {/* Toast */}
-            <div className="pointer-events-none fixed bottom-3 inset-x-0 flex justify-center z-50">
-              {toast && (
-                <div role="alert" className="pointer-events-auto rounded-2xl bg-foreground text-background px-4 py-2 shadow">
-                  {toast}
-                </div>
-              )}
-            </div>
+              {/* Settings Toggle */}
+              <TwButton aria-label="Toggle controls" variant="outline" className="fixed bottom-3 left-3 z-50" size="sm" onClick={() => setShowControls((v) => !v)}>⚙️</TwButton>
+
+              {/* Toast */}
+              <div className="pointer-events-none fixed bottom-3 inset-x-0 flex justify-center z-50">
+                {toast && (
+                  <div role="alert" className="pointer-events-auto rounded-2xl bg-foreground text-background px-4 py-2 shadow">
+                    {toast}
+                  </div>
+                )}
+              </div>
           </div>
         );
 
