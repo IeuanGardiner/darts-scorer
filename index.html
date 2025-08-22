@@ -107,6 +107,7 @@
         switch (segment) {
           case "OUTER": return "25";
           case "BULL":  return "Bull";
+          case "MISS": return "Miss";
           case "S":
           case "D":
           case "T":     return `${segment}${value}`;
@@ -312,6 +313,7 @@
         const norm = label.toUpperCase();
         if (norm === "BULL") return makeDart("BULL", 25);
         if (norm === "25") return makeDart("OUTER", 25);
+        if (norm === "MISS") return makeDart("MISS", 0);
         const m = /^(S|D|T)(\d{1,2})$/.exec(norm);
         if (!m) return null;
         const seg = m[1];
@@ -591,6 +593,10 @@
             addDart(makeDart("BULL", 25));
             return;
           }
+          if (seg === "MISS") {
+            addDart(makeDart("MISS", 0));
+            return;
+          }
           setSelectedSegment(seg);
         }
         function tapNumber(n) {
@@ -641,6 +647,10 @@
           }
           if (seg === "BULL") {
             appendEditDart(makeDart("BULL", 25));
+            return;
+          }
+          if (seg === "MISS") {
+            appendEditDart(makeDart("MISS", 0));
             return;
           }
           setEditSelectedSegment(seg);
@@ -741,12 +751,13 @@
 
                   {/* Keypad */}
                   <div className="flex flex-col gap-3">
-                    <div className="flex gap-2">
-                      <TwButton className="flex-1" variant={selectedSegment === "S" ? "solid" : "outline"} onClick={() => tapSegment("S")}>Single</TwButton>
-                      <TwButton className="flex-1" variant={selectedSegment === "D" ? "solid" : "outline"} onClick={() => tapSegment("D")}>Double</TwButton>
-                      <TwButton className="flex-1" variant={selectedSegment === "T" ? "solid" : "outline"} onClick={() => tapSegment("T")}>Treble</TwButton>
-                      <TwButton className="flex-1" variant="outline" onClick={() => tapSegment("OUTER")}>25</TwButton>
-                      <TwButton className="flex-1" variant="outline" onClick={() => tapSegment("BULL")}>Bull</TwButton>
+                    <div className="grid grid-cols-3 gap-2">
+                      <TwButton className="w-full" variant={selectedSegment === "S" ? "solid" : "outline"} onClick={() => tapSegment("S")}>Single</TwButton>
+                      <TwButton className="w-full" variant={selectedSegment === "D" ? "solid" : "outline"} onClick={() => tapSegment("D")}>Double</TwButton>
+                      <TwButton className="w-full" variant={selectedSegment === "T" ? "solid" : "outline"} onClick={() => tapSegment("T")}>Treble</TwButton>
+                      <TwButton className="w-full" variant="outline" onClick={() => tapSegment("OUTER")}>25</TwButton>
+                      <TwButton className="w-full" variant="outline" onClick={() => tapSegment("BULL")}>Bull</TwButton>
+                      <TwButton className="w-full" variant="outline" onClick={() => tapSegment("MISS")}>Miss</TwButton>
                     </div>
                     <div className="grid grid-cols-5 gap-2">
                       {[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20].map((n) => (
@@ -824,12 +835,13 @@
                     ))}
                   </div>
                     <div className="flex flex-col gap-2 mb-4">
-                      <div className="flex gap-2">
-                        <TwButton className="flex-1" variant={editSelectedSegment === "S" ? "solid" : "outline"} onClick={() => tapEditSegment("S")}>Single</TwButton>
-                        <TwButton className="flex-1" variant={editSelectedSegment === "D" ? "solid" : "outline"} onClick={() => tapEditSegment("D")}>Double</TwButton>
-                        <TwButton className="flex-1" variant={editSelectedSegment === "T" ? "solid" : "outline"} onClick={() => tapEditSegment("T")}>Treble</TwButton>
-                        <TwButton className="flex-1" variant="outline" onClick={() => tapEditSegment("OUTER")}>25</TwButton>
-                        <TwButton className="flex-1" variant="outline" onClick={() => tapEditSegment("BULL")}>Bull</TwButton>
+                      <div className="grid grid-cols-3 gap-2">
+                        <TwButton className="w-full" variant={editSelectedSegment === "S" ? "solid" : "outline"} onClick={() => tapEditSegment("S")}>Single</TwButton>
+                        <TwButton className="w-full" variant={editSelectedSegment === "D" ? "solid" : "outline"} onClick={() => tapEditSegment("D")}>Double</TwButton>
+                        <TwButton className="w-full" variant={editSelectedSegment === "T" ? "solid" : "outline"} onClick={() => tapEditSegment("T")}>Treble</TwButton>
+                        <TwButton className="w-full" variant="outline" onClick={() => tapEditSegment("OUTER")}>25</TwButton>
+                        <TwButton className="w-full" variant="outline" onClick={() => tapEditSegment("BULL")}>Bull</TwButton>
+                        <TwButton className="w-full" variant="outline" onClick={() => tapEditSegment("MISS")}>Miss</TwButton>
                       </div>
                       <div className="grid grid-cols-5 gap-2">
                         {[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20].map((n) => (
