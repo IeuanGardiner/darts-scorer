@@ -1,28 +1,20 @@
-// Global header with accessible, responsive menu (no inline handlers)
+// Mobile-only global header with full-screen menu screen
 document.addEventListener('DOMContentLoaded', () => {
   const header = document.createElement('header');
-  header.className = 'sticky top-0 z-50 bg-card/80 supports-[backdrop-filter]:backdrop-blur border-b border-border text-card-foreground';
+  header.className = 'fixed top-0 inset-x-0 z-50 bg-card text-card-foreground border-b border-border';
   header.innerHTML = `
-    <a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[60] focus:px-3 focus:py-2 focus:rounded-md focus:bg-muted">
-      Skip to content
-    </a>
-    <div class="max-w-7xl mx-auto flex items-center justify-between px-4 py-3">
-      <a href="mode-select.html" class="flex items-center gap-2" aria-label="Go to mode select">
-        <img src="images/DartUpLogoSVG.svg" alt="" class="h-16 w-auto" aria-hidden="true" />
-        <span class="sr-only">Darts Scorer</span>
+    <div class="mx-auto max-w-5xl flex items-center justify-between p-4">
+      <a href="mode-select.html" class="flex items-center" aria-label="Go to mode select">
+        <img src="images/DartUpLogoSVG.svg" alt="Darts Scorer Logo" class="h-16 w-auto" />
       </a>
-
       <div class="flex items-center gap-2">
-        <button id="settingsButton" type="button" class="p-2 rounded-md focus:outline-none focus:ring" aria-label="Settings">
+        <button id="settingsButton" type="button" aria-label="Settings" class="p-2 rounded-md focus:outline-none focus:ring">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0..."/>
+            <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.591 1.054c1.543-.895 3.37.932 2.475 2.475a1.724 1.724 0 001.055 2.592c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.054 2.591c.895 1.543-.932 3.37-2.475 2.475a1.724 1.724 0 00-2.592 1.055c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.591-1.054c-1.543.895-3.37-.932-2.475-2.475a1.724 1.724 0 00-1.055-2.592c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.054-2.591c-.895-1.543.932-3.37 2.475-2.475a1.724 1.724 0 002.592-1.055z"/>
             <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
           </svg>
         </button>
-
-        <button id="menuButton" type="button"
-          class="p-2 rounded-md focus:outline-none focus:ring md:hidden"
-          aria-label="Open menu" aria-controls="globalMenu" aria-expanded="false" data-state="closed">
+        <button id="menuButton" type="button" aria-label="Open menu" aria-controls="menuOverlay" aria-expanded="false" class="p-2 rounded-md focus:outline-none focus:ring">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
           </svg>
@@ -30,111 +22,105 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>
     </div>
 
-    <nav id="globalMenu"
-         class="hidden md:flex md:items-center md:gap-2 flex-col md:flex-row px-4 pb-4 md:p-0"
-         aria-label="Global">
-      <a href="quickplay.html" class="block px-3 py-2 rounded hover:bg-muted focus:bg-muted focus:outline-none">Quick Play</a>
-      <a href="#" data-soon="Training Mode" class="block px-3 py-2 rounded hover:bg-muted focus:bg-muted focus:outline-none">Training Mode</a>
-      <a href="#" data-soon="Multiplayer" class="block px-3 py-2 rounded hover:bg-muted focus:bg-muted focus:outline-none">Multiplayer</a>
-    </nav>
+    <!-- Full-screen menu screen (sits under the header) -->
+    <div id="menuOverlay"
+         class="fixed inset-0 z-40 hidden bg-card text-card-foreground"
+         role="dialog" aria-modal="true" aria-labelledby="menuTitle">
+      <div class="mx-auto max-w-5xl px-4 pt-24 pb-10 flex flex-col gap-4">
+        <h2 id="menuTitle" class="text-2xl font-semibold mb-2">Menu</h2>
+        <nav id="globalMenu" class="flex flex-col gap-2" aria-label="Global">
+          <a href="quickplay.html" class="block px-4 py-3 rounded text-lg hover:bg-muted focus:bg-muted focus:outline-none">Quick Play</a>
+          <a href="#" data-soon="Training Mode" class="block px-4 py-3 rounded text-lg hover:bg-muted focus:bg-muted focus:outline-none">Training Mode</a>
+          <a href="#" data-soon="Multiplayer" class="block px-4 py-3 rounded text-lg hover:bg-muted focus:bg-muted focus:outline-none">Multiplayer</a>
+        </nav>
+        <div class="mt-6 text-sm text-muted-foreground">More coming soon.</div>
+      </div>
+    </div>
   `;
 
   document.body.prepend(header);
 
   const menuBtn   = header.querySelector('#menuButton');
-  const menu      = header.querySelector('#globalMenu');
   const settings  = header.querySelector('#settingsButton');
-  const mql       = window.matchMedia('(min-width: 768px)');
-  const supportsInert = 'inert' in menu;
+  const overlay   = header.querySelector('#menuOverlay');
+  const menu      = header.querySelector('#globalMenu');
+  const supportsInert = 'inert' in document.createElement('div');
 
-  // Initialise hidden state for a11y on load (mobile)
-  if (!mql.matches) {
-    menu.setAttribute('aria-hidden', 'true');
-    if (supportsInert) menu.inert = true;
-  }
+  // Hide everything except header when menu is open
+  const toggleSiblingsHidden = (hide) => {
+    [...document.body.children].forEach(el => {
+      if (el === header) return;
+      if (hide) {
+        el.setAttribute('aria-hidden', 'true');
+        if (supportsInert) el.inert = true;
+      } else {
+        el.removeAttribute('aria-hidden');
+        if (supportsInert) el.inert = false;
+      }
+    });
+  };
 
-  // Mark current page
-  header.querySelectorAll('nav a[href]').forEach(a => {
-    const url = new URL(a.getAttribute('href'), location.href);
-    if (url.pathname === location.pathname) a.setAttribute('aria-current', 'page');
-  });
+  // Keep overlay starting below the header
+  const setOverlayPadding = () => {
+    overlay.style.paddingTop = `${header.offsetHeight}px`;
+  };
+  setOverlayPadding();
+  window.addEventListener('resize', setOverlayPadding);
 
-  // Open/close helpers (mobile only)
-  const firstLink = () => menu.querySelector('a,button,[tabindex]:not([tabindex="-1"])');
+  const lockScroll = (lock) => {
+    document.documentElement.classList.toggle('overflow-hidden', lock);
+    document.body.classList.toggle('overflow-hidden', lock);
+  };
+
+  const firstFocusable = () => overlay.querySelector('a,button,[tabindex]:not([tabindex="-1"])');
+
   function openMenu() {
+    setOverlayPadding();
+    overlay.classList.remove('hidden');
     menuBtn.setAttribute('aria-expanded', 'true');
-    menuBtn.dataset.state = 'open';
-    menu.classList.remove('hidden');
-    menu.classList.add('block');
-    menu.removeAttribute('aria-hidden');
-    if (supportsInert) menu.inert = false;
-    // Focus first link for keyboard users
-    const f = firstLink();
-    if (f) f.focus();
-    // Update button label for AT
     menuBtn.setAttribute('aria-label', 'Close menu');
+    toggleSiblingsHidden(true);
+    lockScroll(true);
+    const f = firstFocusable();
+    if (f) f.focus();
   }
-  function closeMenu({returnFocus = true} = {}) {
+
+  function closeMenu({ returnFocus = true } = {}) {
+    overlay.classList.add('hidden');
     menuBtn.setAttribute('aria-expanded', 'false');
-    menuBtn.dataset.state = 'closed';
-    menu.classList.add('hidden');
-    menu.classList.remove('block');
-    menu.setAttribute('aria-hidden', 'true');
-    if (supportsInert) menu.inert = true;
-    if (returnFocus) menuBtn.focus();
     menuBtn.setAttribute('aria-label', 'Open menu');
+    toggleSiblingsHidden(false);
+    lockScroll(false);
+    if (returnFocus) menuBtn.focus();
   }
-  function isOpen() { return menuBtn.getAttribute('aria-expanded') === 'true'; }
 
-  menuBtn.addEventListener('click', () => {
-    if (mql.matches) return; // desktop: menu is always visible
-    isOpen() ? closeMenu({returnFocus:false}) : openMenu();
-  });
+  const isOpen = () => menuBtn.getAttribute('aria-expanded') === 'true';
 
-  // Close on Esc
+  menuBtn.addEventListener('click', () => (isOpen() ? closeMenu({ returnFocus: false }) : openMenu()));
+
+  // Close with ESC
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && isOpen()) closeMenu();
   });
 
-  // Close on outside click (mobile)
-  document.addEventListener('click', (e) => {
-    if (!isOpen() || mql.matches) return;
-    if (!header.contains(e.target)) closeMenu({returnFocus:false});
-  });
-
-  // Close after selecting a link (mobile)
+  // Click a link
   menu.addEventListener('click', (e) => {
     const a = e.target.closest('a[href]');
     if (!a) return;
-    if (a.dataset.soon && !mql.matches) {
+    if (a.dataset.soon) {
       e.preventDefault();
       alert(`${a.dataset.soon} coming soon!`);
-      closeMenu({returnFocus:false});
-    } else if (!mql.matches) {
-      closeMenu({returnFocus:false});
+      closeMenu({ returnFocus: false });
+      return;
     }
+    closeMenu({ returnFocus: false });
   });
 
-  // Handle responsive changes
-  mql.addEventListener('change', (e) => {
-    if (e.matches) {
-      // Desktop: ensure interactive
-      menu.classList.remove('block'); // md:flex will show it
-      menu.removeAttribute('aria-hidden');
-      if (supportsInert) menu.inert = false;
-      menuBtn.setAttribute('aria-expanded', 'false');
-      menuBtn.dataset.state = 'closed';
-    } else {
-      // Back to mobile: keep it closed initially
-      menu.setAttribute('aria-hidden', 'true');
-      if (supportsInert) menu.inert = true;
-    }
-  });
-
-  // Settings
+  // Settings button
   settings.addEventListener('click', () => {
     if (window.Settings && typeof window.Settings.openSettings === 'function') {
       window.Settings.openSettings();
     }
   });
 });
+
