@@ -31,7 +31,6 @@
     </style>
 
     <script src="settings.js"></script>
-    <script src="global-header.js" defer></script>
 
     <!-- React (production) + ReactDOM -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
@@ -40,8 +39,21 @@
     <!-- Babel so we can write JSX here -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   </head>
-    <body class="bg-background text-foreground pt-[var(--header-h)]">
-    <div id="root"></div>
+    <body class="bg-background text-foreground">
+    <header class="fixed top-0 inset-x-0 z-50 bg-card text-card-foreground border-b border-border flex items-center justify-between p-4">
+      <a href="index.html" aria-label="Back" class="p-2 rounded-md focus:outline-none focus:ring">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+        </svg>
+      </a>
+      <button type="button" aria-label="Settings" class="p-2 rounded-md focus:outline-none focus:ring" onclick="Settings.openSettings()">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.591 1.054c1.543-.895 3.37.932 2.475 2.475a1.724 1.724 0 001.055 2.592c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.054 2.591c.895 1.543-.932 3.37-2.475 2.475a1.724 1.724 0 00-2.592 1.055c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.591-1.054c-1.543.895-3.37-.932-2.475-2.475a1.724 1.724 0 00-1.055-2.592c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.054-2.591c-.895-1.543.932-3.37 2.475-2.475a1.724 1.724 0 002.592-1.055z"/>
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+        </svg>
+      </button>
+    </header>
+    <div id="root" class="pt-16"></div>
 
     <script type="text/babel">
       const { useEffect, useMemo, useRef, useState } = React;
@@ -622,7 +634,7 @@
         const tests = useMemo(() => runTests(), []);
 
         return (
-          <div className="mx-auto max-w-md min-h-[calc(100dvh-var(--header-h))] bg-background text-foreground p-3 sm:p-4 flex flex-col gap-3">
+          <div className="mx-auto max-w-md min-h-[100dvh] bg-background text-foreground p-3 sm:p-4 flex flex-col gap-3">
             {/* Score */}
             <header className="flex items-center justify-between gap-3">
               <div>
