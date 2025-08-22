@@ -685,7 +685,15 @@
 
         return (
           <div className="mx-auto max-w-md min-h-[100dvh] bg-background text-foreground p-3 sm:p-4 flex flex-col gap-3">
-            {/* Header / Score */}
+            {/* App Header */}
+            <header className="flex items-center justify-between">
+              <div className="text-lg font-semibold">Dart Trainer</div>
+              <TwButton size="sm" variant="outline" onClick={() => setShowControls(true)} aria-label="Settings">
+                <span aria-hidden="true">⚙️</span>
+              </TwButton>
+            </header>
+
+            {/* Score */}
             <header className="flex items-center justify-between gap-3">
                 <div>
                   <div className="text-xs opacity-70">Remaining</div>
@@ -694,9 +702,6 @@
                     <span>Leg status: {state.status === "playing" ? "In play" : "Won"}</span>
                     <TwButton size="sm" variant="outline" onClick={() => resetLeg()} aria-label="Reset">
                       <span aria-hidden="true">🔄</span>
-                    </TwButton>
-                    <TwButton size="sm" variant="outline" onClick={() => setShowControls(true)} aria-label="Settings">
-                      <span aria-hidden="true">⚙️</span>
                     </TwButton>
                   </div>
                 </div>
