@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
     <nav id="globalMenu" class="hidden flex-col px-4 pb-4 space-y-2" role="navigation">
       <a href="quickplay.html" class="block px-3 py-2 rounded hover:bg-muted focus:bg-muted focus:outline-none">Quick Play</a>
       <a href="#" class="block px-3 py-2 rounded hover:bg-muted focus:bg-muted focus:outline-none" onclick="alert('Training mode coming soon!');return false;">Training Mode</a>
-      <a href="#" class="block px-3 py-2 rounded hover:bg-muted focus:bg-muted focus:outline-none" onclick="alert('Match mode coming soon!');return false;">Match</a>
+      <a href="#" class="block px-3 py-2 rounded hover:bg-muted focus:bg-muted focus:outline-none" onclick="alert('Multiplayer coming soon!');return false;">Multiplayer</a>
     </nav>
   `;
 
