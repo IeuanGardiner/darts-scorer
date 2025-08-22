@@ -4,7 +4,9 @@ document.addEventListener('DOMContentLoaded', () => {
   header.className = 'bg-card text-card-foreground border-b border-border';
   header.innerHTML = `
     <div class="max-w-5xl mx-auto flex items-center justify-between p-4">
-      <a href="index.html" class="text-lg font-bold">Darts Scorer</a>
+      <a href="index.html">
+        <img src="images/DartUpLogo.png" alt="Darts Scorer Logo" class="h-8 w-auto" />
+      </a>
       <div class="flex items-center gap-2">
         <button id="settingsButton" aria-label="Settings" class="p-2 rounded-md focus:outline-none focus:ring">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" aria-hidden="true">
