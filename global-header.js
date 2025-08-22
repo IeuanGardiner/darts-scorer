@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
   header.innerHTML = `
     <div class="max-w-5xl mx-auto flex items-center justify-between p-4">
       <a href="index.html">
-        <img src="images/DartUpLogoSVG.svg" alt="Darts Scorer Logo" class="h-8 w-auto" />
+        <img src="images/DartUpLogoSVG.svg" alt="Darts Scorer Logo" class="h-16 w-auto" />
       </a>
       <div class="flex items-center gap-2">
         <button id="settingsButton" aria-label="Settings" class="p-2 rounded-md focus:outline-none focus:ring">
