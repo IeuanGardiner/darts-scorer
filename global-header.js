@@ -24,16 +24,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     <!-- Full-screen menu screen (sits under the header) -->
     <div id="menuOverlay"
-         class="fixed inset-0 z-40 hidden bg-card text-card-foreground"
+         class="fixed inset-0 z-40 hidden bg-card/80 backdrop-blur text-card-foreground"
          role="dialog" aria-modal="true" aria-labelledby="menuTitle">
-      <div class="mx-auto max-w-5xl px-4 pt-24 pb-10 flex flex-col gap-4">
-        <h2 id="menuTitle" class="text-2xl font-semibold mb-2">Menu</h2>
+      <div class="mx-auto max-w-5xl px-4 pb-10 flex flex-col gap-4">
+        <div class="flex items-center justify-between mb-4">
+          <h2 id="menuTitle" class="text-2xl font-semibold">Menu</h2>
+          <button id="menuExit" class="px-3 py-2 rounded-xl border border-border" aria-label="Close menu">Exit</button>
+        </div>
         <nav id="globalMenu" class="flex flex-col gap-2" aria-label="Global">
           <a href="quickplay.html" class="block px-4 py-3 rounded text-lg hover:bg-muted focus:bg-muted focus:outline-none">Quick Play</a>
           <a href="training-mode.html" class="block px-4 py-3 rounded text-lg hover:bg-muted focus:bg-muted focus:outline-none">Training Mode</a>
           <a href="#" data-soon="Multiplayer" class="block px-4 py-3 rounded text-lg hover:bg-muted focus:bg-muted focus:outline-none">Multiplayer</a>
         </nav>
-        <div class="mt-6 text-sm text-muted-foreground">More coming soon.</div>
       </div>
     </div>
   `;
@@ -44,6 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const settings  = header.querySelector('#settingsButton');
   const overlay   = header.querySelector('#menuOverlay');
   const menu      = header.querySelector('#globalMenu');
+  const exitBtn   = header.querySelector('#menuExit');
   const supportsInert = 'inert' in document.createElement('div');
 
   // Hide everything except header when menu is open
@@ -99,6 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const isOpen = () => menuBtn.getAttribute('aria-expanded') === 'true';
 
   menuBtn.addEventListener('click', () => (isOpen() ? closeMenu({ returnFocus: false }) : openMenu()));
+  exitBtn.addEventListener('click', () => closeMenu());
 
   // Close with ESC
   document.addEventListener('keydown', (e) => {
