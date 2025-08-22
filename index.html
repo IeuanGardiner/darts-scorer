@@ -653,8 +653,12 @@
                   <div aria-live="polite" ref={scoreLiveRef} className="text-5xl font-extrabold tracking-tight">{state.currentScore}</div>
                   <div className="flex items-center gap-2 mt-1 text-xs opacity-70">
                     <span>Leg status: {state.status === "playing" ? "In play" : "Won"}</span>
-                    <TwButton size="sm" variant="outline" onClick={() => resetLeg()}>Reset</TwButton>
-                    <TwButton size="sm" variant="outline" onClick={() => setShowControls(true)}>Settings</TwButton>
+                    <TwButton size="sm" variant="outline" onClick={() => resetLeg()} aria-label="Reset">
+                      <span aria-hidden="true">🔄</span>
+                    </TwButton>
+                    <TwButton size="sm" variant="outline" onClick={() => setShowControls(true)} aria-label="Settings">
+                      <span aria-hidden="true">⚙️</span>
+                    </TwButton>
                   </div>
                 </div>
               <div className="text-right">
