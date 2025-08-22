@@ -475,7 +475,10 @@
 
         // Current turn darts
         const [currentDarts, setCurrentDarts] = useState([]);
-        const [bustThisTurn, setBustThisTurn] = useState(false);
+        const liveScore = useMemo(
+          () => state.currentScore - currentDarts.reduce((acc, d) => acc + d.points, 0),
+          [state.currentScore, currentDarts]
+        );
 
           // UI
           const [toast, setToast] = useState(null);
@@ -496,23 +499,22 @@
 
         // Checkout hint
         const dartsLeftThisTurn = 3 - currentDarts.length;
-        const checkoutEligible = isCheckout(state.currentScore, dartsLeftThisTurn);
-        const checkoutRoute = checkoutEligible ? getCheckoutRoute(state.currentScore, settings.favouriteDouble, dartsLeftThisTurn) : [];
+        const checkoutEligible = isCheckout(liveScore, dartsLeftThisTurn);
+        const checkoutRoute = checkoutEligible ? getCheckoutRoute(liveScore, settings.favouriteDouble, dartsLeftThisTurn) : [];
 
           // A11y live refs
           const scoreLiveRef = useRef(null);
           const hintLiveRef = useRef(null);
 
         useEffect(() => {
-          scoreLiveRef.current?.setAttribute("data-score", String(state.currentScore));
+          scoreLiveRef.current?.setAttribute("data-score", String(liveScore));
           if (checkoutRoute.length) hintLiveRef.current?.setAttribute("data-hint", checkoutRoute.join(", "));
-        }, [state.currentScore, checkoutRoute.join("|")]);
+        }, [liveScore, checkoutRoute.join("|")]);
 
         // Handle adding a dart
         function addDart(d) {
           if (state.status === "gameover") return;
           if (currentDarts.length >= 3) return;
-          if (bustThisTurn) return;
 
 
           const newDarts = [...currentDarts, d];
@@ -521,8 +523,8 @@
           const partial = scoreTurn(state.currentScore, newDarts);
 
           if (partial.bust) {
-            setBustThisTurn(true);
             showToast("BUST – score reverts");
+            commitTurn(newDarts, false);
             return;
           }
 
@@ -552,7 +554,6 @@
           };
           setState(nextState);
           setCurrentDarts([]);
-          setBustThisTurn(false);
             if (finished) {
               showToast(`Leg won in ${dartsThrown + darts.length} darts – 3DA ${threeDA.toFixed(1)}`);
               resetLeg(true);
@@ -564,18 +565,15 @@
           const nd = [...currentDarts];
           nd.pop();
           setCurrentDarts(nd);
-          setBustThisTurn(false);
         }
 
         function clearTurn() {
           setCurrentDarts([]);
-          setBustThisTurn(false);
         }
 
           function resetLeg(silent = false) {
             setState({ currentScore: START_SCORE, turns: [], status: "playing" });
             setCurrentDarts([]);
-            setBustThisTurn(false);
             if (!silent) showToast("Leg reset");
           }
 
@@ -650,7 +648,7 @@
             <header className="flex items-center justify-between gap-3">
                 <div>
                   <div className="text-xs opacity-70">Remaining</div>
-                  <div aria-live="polite" ref={scoreLiveRef} className="text-5xl font-extrabold tracking-tight">{state.currentScore}</div>
+                  <div aria-live="polite" ref={scoreLiveRef} className="text-5xl font-extrabold tracking-tight">{liveScore}</div>
                   <div className="flex items-center gap-2 mt-1 text-xs opacity-70">
                     <span>Leg status: {state.status === "playing" ? "In play" : "Won"}</span>
                     <TwButton size="sm" variant="outline" onClick={() => resetLeg()} aria-label="Reset">
@@ -683,7 +681,7 @@
                 </Card>
               ) : (
                 <Card className="bg-muted/40">
-                  <CardBody className="text-sm opacity-70">No finish in {3 - currentDarts.length} dart(s) – set up your favourite double.</CardBody>
+                  <CardBody className="text-sm opacity-70">No finish in {dartsLeftThisTurn} dart(s) – set up your favourite double.</CardBody>
                 </Card>
               )}
             </div>
@@ -704,7 +702,7 @@
                 <div className="flex gap-2">
                   <TwButton aria-label="Undo last dart" className="flex-1" variant="outline" onClick={undoLastDart}>Undo</TwButton>
                   <TwButton aria-label="Clear turn" className="flex-1" variant="outline" onClick={clearTurn}>Clear</TwButton>
-                  <TwButton aria-label="Submit turn" className="flex-1" onClick={() => commitTurn(currentDarts, false)} disabled={currentDarts.length === 0 || bustThisTurn}>Submit</TwButton>
+                  <TwButton aria-label="Submit turn" className="flex-1" onClick={() => commitTurn(currentDarts, false)} disabled={currentDarts.length === 0}>Submit</TwButton>
                 </div>
 
                   {/* Keypad */}
@@ -727,10 +725,7 @@
                     </div>
                   </div>
 
-                  {/* Bust banner */}
-                {bustThisTurn && (
-                  <div role="alert" className="rounded-xl border border-red-400 bg-red-500/10 text-red-600 px-3 py-2 text-sm">BUST – score reverts to {state.currentScore}</div>
-                )}
+
               </CardBody>
             </Card>
 
