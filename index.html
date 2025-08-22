@@ -565,36 +565,38 @@
           const nd = [...currentDarts];
           nd.pop();
           setCurrentDarts(nd);
+          setSelectedSegment(null);
         }
 
         function clearTurn() {
           setCurrentDarts([]);
+          setSelectedSegment(null);
         }
 
           function resetLeg(silent = false) {
             setState({ currentScore: START_SCORE, turns: [], status: "playing" });
             setCurrentDarts([]);
+            setSelectedSegment(null);
             if (!silent) showToast("Leg reset");
           }
 
           // Keypad state
-          const [selectedNumber, setSelectedNumber] = useState(null);
-        function tapNumber(n) {
-          setSelectedNumber(n);
-        }
+          const [selectedSegment, setSelectedSegment] = useState(null);
         function tapSegment(seg) {
-          if (selectedNumber == null) return;
-          if (selectedNumber === 25 && seg === "T") return; // no T25
-          if (selectedNumber === 25 && seg === "D") {
-            addDart(makeDart("BULL", 25));
-          } else if (selectedNumber === 25 && seg === "S") {
+          if (seg === "OUTER") {
             addDart(makeDart("OUTER", 25));
-          } else if (selectedNumber === 50) {
-            addDart(makeDart("BULL", 25));
-          } else {
-            addDart(makeDart(seg, Math.max(1, Math.min(20, selectedNumber))));
+            return;
           }
-          setSelectedNumber(null);
+          if (seg === "BULL") {
+            addDart(makeDart("BULL", 25));
+            return;
+          }
+          setSelectedSegment(seg);
+        }
+        function tapNumber(n) {
+          if (selectedSegment == null) return;
+          addDart(makeDart(selectedSegment, Math.max(1, Math.min(20, n))));
+          setSelectedSegment(null);
         }
 
         // History (last 5, edit last 3)
@@ -606,8 +608,12 @@
         }, [state.turns.length]);
 
         const [editDarts, setEditDarts] = useState([]);
+        const [editSelectedSegment, setEditSelectedSegment] = useState(null);
         useEffect(() => {
-          if (editIndex != null) setEditDarts(state.turns[editIndex].darts);
+          if (editIndex != null) {
+            setEditDarts(state.turns[editIndex].darts);
+            setEditSelectedSegment(null);
+          }
         }, [editIndex]);
 
         function recalcFrom(index, newTurnDarts) {
@@ -628,15 +634,40 @@
           setState({ currentScore: score, turns: newTurns, status: score === 0 ? "gameover" : "playing" });
         }
 
+        function tapEditSegment(seg) {
+          if (seg === "OUTER") {
+            appendEditDart(makeDart("OUTER", 25));
+            return;
+          }
+          if (seg === "BULL") {
+            appendEditDart(makeDart("BULL", 25));
+            return;
+          }
+          setEditSelectedSegment(seg);
+        }
+
+        function tapEditNumber(n) {
+          if (!editSelectedSegment) return;
+          appendEditDart(makeDart(editSelectedSegment, Math.max(1, Math.min(20, n))));
+          setEditSelectedSegment(null);
+        }
+
+        function appendEditDart(d) {
+          if (editIndex == null) return;
+          setEditDarts((prev) => prev.length >= 3 ? [d] : [...prev, d]);
+        }
+
         function saveEdit() {
           if (editIndex == null) return;
           recalcFrom(editIndex, editDarts);
           setEditIndex(null);
+          setEditSelectedSegment(null);
           showToast("Turn updated");
         }
 
         function cancelEdit() {
           setEditIndex(null);
+          setEditSelectedSegment(null);
         }
 
         // Minimal tests
@@ -700,28 +731,35 @@
 
                 {/* Actions */}
                 <div className="flex gap-2">
-                  <TwButton aria-label="Undo last dart" className="flex-1" variant="outline" onClick={undoLastDart}>Undo</TwButton>
-                  <TwButton aria-label="Clear turn" className="flex-1" variant="outline" onClick={clearTurn}>Clear</TwButton>
-                  <TwButton aria-label="Submit turn" className="flex-1" onClick={() => commitTurn(currentDarts, false)} disabled={currentDarts.length === 0}>Submit</TwButton>
+                  <TwButton aria-label="Undo last dart" className="flex-1" variant="outline" onClick={undoLastDart}>
+                    <span aria-hidden="true">↩️</span>
+                  </TwButton>
+                  <TwButton aria-label="Clear turn" className="flex-1" variant="outline" onClick={clearTurn}>
+                    <span aria-hidden="true">🗑️</span>
+                  </TwButton>
                 </div>
 
                   {/* Keypad */}
                   <div className="flex flex-col gap-3">
+                    <div className="flex gap-2">
+                      <TwButton className="flex-1" variant={selectedSegment === "S" ? "solid" : "outline"} onClick={() => tapSegment("S")}>Single</TwButton>
+                      <TwButton className="flex-1" variant={selectedSegment === "D" ? "solid" : "outline"} onClick={() => tapSegment("D")}>Double</TwButton>
+                      <TwButton className="flex-1" variant={selectedSegment === "T" ? "solid" : "outline"} onClick={() => tapSegment("T")}>Treble</TwButton>
+                      <TwButton className="flex-1" variant="outline" onClick={() => tapSegment("OUTER")}>25</TwButton>
+                      <TwButton className="flex-1" variant="outline" onClick={() => tapSegment("BULL")}>Bull</TwButton>
+                    </div>
                     <div className="grid grid-cols-5 gap-2">
-                      {[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,25,50].map((n) => (
-                        <button key={n}
+                      {[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20].map((n) => (
+                        <button
+                          key={n}
                           onClick={() => tapNumber(n)}
-                          className={`rounded-xl border px-3 py-3 text-lg ${selectedNumber === n ? "bg-indigo-600 text-white" : "bg-background"}`}
-                          aria-label={`Select ${n === 50 ? "Bull" : n === 25 ? "Outer 25" : n}`}
+                          className={`rounded-xl border px-3 py-3 text-lg ${selectedSegment ? "bg-background" : "opacity-60"}`}
+                          disabled={selectedSegment == null}
+                          aria-label={`Select ${n}`}
                         >
-                          {n === 50 ? "Bull" : n}
+                          {n}
                         </button>
                       ))}
-                    </div>
-                    <div className="flex gap-2">
-                      <TwButton className="flex-1" variant="outline" onClick={() => tapSegment("S")} disabled={selectedNumber == null}>Single</TwButton>
-                      <TwButton className="flex-1" variant="outline" onClick={() => tapSegment("D")} disabled={selectedNumber == null || selectedNumber === 50}>Double</TwButton>
-                      <TwButton className="flex-1" variant="outline" onClick={() => tapSegment("T")} disabled={selectedNumber == null || selectedNumber >= 25}>Treble</TwButton>
                     </div>
                   </div>
 
@@ -785,17 +823,21 @@
                       </div>
                     ))}
                   </div>
-                  <div className="grid grid-cols-5 gap-2 mb-2">
-                    {[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,25,50].map((n) => (
-                      <button key={n} onClick={() => setSelectedNumber(n)} className={`rounded-xl border px-3 py-3 text-lg ${selectedNumber === n ? "bg-indigo-600 text-white" : "bg-background"}`}>{n===50?"Bull":n}</button>
-                    ))}
-                  </div>
-                  <div className="flex gap-2 mb-4">
-                    <TwButton className="flex-1" variant="outline" onClick={() => { if (selectedNumber==null) return; appendEdit("S"); }}>Single</TwButton>
-                    <TwButton className="flex-1" variant="outline" onClick={() => { if (selectedNumber==null || selectedNumber===50) return; appendEdit("D"); }}>Double</TwButton>
-                    <TwButton className="flex-1" variant="outline" onClick={() => { if (selectedNumber==null || selectedNumber>=25) return; appendEdit("T"); }}>Treble</TwButton>
-                    <TwButton className="flex-1" variant="outline" onClick={() => { setEditDarts([]); }}>Clear</TwButton>
-                  </div>
+                    <div className="flex flex-col gap-2 mb-4">
+                      <div className="flex gap-2">
+                        <TwButton className="flex-1" variant={editSelectedSegment === "S" ? "solid" : "outline"} onClick={() => tapEditSegment("S")}>Single</TwButton>
+                        <TwButton className="flex-1" variant={editSelectedSegment === "D" ? "solid" : "outline"} onClick={() => tapEditSegment("D")}>Double</TwButton>
+                        <TwButton className="flex-1" variant={editSelectedSegment === "T" ? "solid" : "outline"} onClick={() => tapEditSegment("T")}>Treble</TwButton>
+                        <TwButton className="flex-1" variant="outline" onClick={() => tapEditSegment("OUTER")}>25</TwButton>
+                        <TwButton className="flex-1" variant="outline" onClick={() => tapEditSegment("BULL")}>Bull</TwButton>
+                      </div>
+                      <div className="grid grid-cols-5 gap-2">
+                        {[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20].map((n) => (
+                          <button key={n} onClick={() => tapEditNumber(n)} className={`rounded-xl border px-3 py-3 text-lg ${editSelectedSegment ? "bg-background" : "opacity-60"}`} disabled={!editSelectedSegment}>{n}</button>
+                        ))}
+                      </div>
+                      <TwButton variant="outline" onClick={() => { setEditDarts([]); setEditSelectedSegment(null); }}>Clear</TwButton>
+                    </div>
                   <div className="flex gap-2">
                     <TwButton className="flex-1" variant="outline" onClick={cancelEdit}>Cancel</TwButton>
                     <TwButton className="flex-1" onClick={saveEdit} disabled={editDarts.length===0}>Save</TwButton>
@@ -866,15 +908,6 @@
         );
 
         // helpers
-        function appendEdit(seg) {
-          if (editIndex == null || selectedNumber == null) return;
-          let d;
-          if (selectedNumber === 25 && seg === "S") d = makeDart("OUTER", 25);
-          else if (selectedNumber === 25 && seg === "D") d = makeDart("BULL", 25);
-          else if (selectedNumber === 50) d = makeDart("BULL", 25);
-          else d = makeDart(seg, Math.max(1, Math.min(20, selectedNumber)));
-          setEditDarts((prev) => prev.length >= 3 ? [d] : [...prev, d]);
-        }
       }
 
       /*************************
