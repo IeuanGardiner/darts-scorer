@@ -1,0 +1,1031 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Darts Scorer</title>
+
+    <!-- Tailwind CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Tiny CSS to map the “token” classes used in the app -->
+    <style>
+      :root { color-scheme: light dark; }
+      .bg-background { background-color: #ffffff; }
+      .dark .bg-background { background-color: #0a0a0a; }
+
+      .text-foreground { color: #0a0a0a; }
+      .dark .text-foreground { color: #fafafa; }
+
+      .bg-card { background-color: #ffffff; }
+      .dark .bg-card { background-color: #0f0f0f; }
+
+      .text-card-foreground { color: #0a0a0a; }
+      .dark .text-card-foreground { color: #fafafa; }
+
+      .border-border { border-color: #e5e7eb; }
+      .dark .border-border { border-color: #1f2937; }
+
+      .bg-muted { background-color: #f4f4f5; }
+      .dark .bg-muted { background-color: rgba(39,39,42,0.4); }
+    </style>
+
+    <!-- React (production) + ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+
+    <!-- Babel so we can write JSX here -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  </head>
+  <body class="bg-background text-foreground">
+    <div id="root"></div>
+
+    <script type="text/babel">
+      const { useEffect, useMemo, useRef, useState } = React;
+
+      /*************************
+       * Types & Constants (JS)
+       *************************/
+
+      const START_SCORE = 501;
+
+      // Classic no 3-dart checkout numbers (bogeys)
+      const NO_CHECKOUT_3_DART = new Set([169, 168, 166, 165, 163, 162, 159]);
+
+      const ALL_DOUBLES = Array.from({ length: 20 }, (_, i) => (i + 1) * 2).concat([50]);
+
+      const DEFAULT_SETTINGS = {
+        favouriteDouble: 32, // D16
+        theme: "system",
+        sound: false,
+      };
+
+      /*************************
+       * Utility – Local Storage
+       *************************/
+
+      const LS_STATE_KEY = "dartscorer_state_v1";
+      const LS_SETTINGS_KEY = "dartscorer_settings_v1";
+
+      function loadState() {
+        try {
+          const raw = localStorage.getItem(LS_STATE_KEY);
+          if (!raw) return null;
+          return JSON.parse(raw);
+        } catch {
+          return null;
+        }
+      }
+
+      function saveState(state) {
+        try {
+          localStorage.setItem(LS_STATE_KEY, JSON.stringify(state));
+        } catch {}
+      }
+
+      function loadSettings() {
+        try {
+          const raw = localStorage.getItem(LS_SETTINGS_KEY);
+          if (!raw) return DEFAULT_SETTINGS;
+          return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+        } catch {
+          return DEFAULT_SETTINGS;
+        }
+      }
+
+      function saveSettings(s) {
+        try {
+          localStorage.setItem(LS_SETTINGS_KEY, JSON.stringify(s));
+        } catch {}
+      }
+
+      /*************************
+       * Scoring Engine
+       *************************/
+
+      function segmentLabel(segment, value) {
+        switch (segment) {
+          case "OUTER": return "25";
+          case "BULL":  return "Bull";
+          case "S":
+          case "D":
+          case "T":     return `${segment}${value}`;
+          default:      return "";
+        }
+      }
+
+      function computePoints(segment, value) {
+        if (segment === "OUTER") return 25;
+        if (segment === "BULL") return 50;
+        if (segment === "S") return value;
+        if (segment === "D") return value * 2;
+        if (segment === "T") return value * 3;
+        return 0;
+      }
+
+      function makeDart(segment, value) {
+        const label = segmentLabel(segment, value);
+        return { segment, value, points: computePoints(segment, value), label };
+      }
+
+      function isDouble(segment, value) {
+        return segment === "D" || (segment === "BULL" && value === 25);
+      }
+
+      function scoreTurn(currentScore, darts) {
+        let remaining = currentScore;
+        const perDartRemaining = [];
+        let finished = false;
+
+        for (let i = 0; i < darts.length; i++) {
+          const d = darts[i];
+          const before = remaining;
+          const after = before - d.points;
+
+          // Bust conditions: below 0 or equals 1
+          if (after < 0 || after === 1) {
+            perDartRemaining.push(before);
+            return { nextScore: currentScore, bust: true, finished: false, perDartRemaining };
+          }
+
+          // Exact 0 must be on a double (incl. Bull)
+          if (after === 0) {
+            if (isDouble(d.segment, d.value)) {
+              perDartRemaining.push(0);
+              finished = true;
+              return { nextScore: 0, bust: false, finished, perDartRemaining };
+            } else {
+              perDartRemaining.push(before);
+              return { nextScore: currentScore, bust: true, finished: false, perDartRemaining };
+            }
+          }
+
+          // continue
+          remaining = after;
+          perDartRemaining.push(remaining);
+        }
+
+        return { nextScore: remaining, bust: false, finished, perDartRemaining };
+      }
+
+      /*************************
+       * Checkout Logic
+       *************************/
+
+      const SEEDED_CHECKOUTS = {
+        170: ["T20", "T20", "Bull"],
+        167: ["T20", "T19", "Bull"],
+        164: ["T20", "T18", "Bull"],
+        161: ["T20", "T17", "Bull"],
+        160: ["T20", "T20", "D20"],
+        158: ["T20", "T20", "D19"],
+        157: ["T20", "T19", "D20"],
+        156: ["T20", "T20", "D18"],
+        155: ["T20", "T19", "D19"],
+        154: ["T20", "T18", "D20"],
+        153: ["T20", "T19", "D18"],
+        152: ["T20", "T20", "D16"],
+        151: ["T20", "T17", "D20"],
+        150: ["T20", "T18", "D18"],
+        149: ["T20", "T19", "D16"],
+        148: ["T20", "T20", "D14"],
+        147: ["T20", "T17", "D18"],
+        146: ["T20", "T18", "D16"],
+        145: ["T20", "T15", "D20"],
+        144: ["T20", "T20", "D12"],
+        143: ["T20", "T17", "D16"],
+        142: ["T20", "T14", "D20"],
+        141: ["T20", "T19", "D12"],
+        140: ["T20", "T20", "D10"],
+        139: ["T20", "T13", "D20"],
+        138: ["T20", "T18", "D12"],
+        137: ["T20", "T19", "D10"],
+        136: ["T20", "T20", "D8"],
+        135: ["BULL", "T15", "D20"],
+        134: ["T20", "T14", "D16"],
+        133: ["T20", "T19", "D8"],
+        132: ["BULL", "T14", "D20"],
+        131: ["T20", "T13", "D16"],
+        130: ["T20", "T20", "D5"],
+        129: ["T19", "T16", "D12"],
+        128: ["T18", "T14", "D16"],
+        127: ["T20", "T17", "D8"],
+        126: ["T19", "T19", "D6"],
+        125: ["BULL", "T17", "D12"],
+        124: ["T20", "T16", "D8"],
+        123: ["T19", "T16", "D9"],
+        122: ["T18", "T18", "D7"],
+        121: ["T20", "T15", "D8"],
+        110: ["T20", "Bull"],
+        109: ["T19", "D16"],
+        108: ["T20", "D24"],
+        107: ["T19", "D25"],
+        106: ["T20", "D23"],
+        105: ["T19", "D24"],
+        104: ["T18", "D25"],
+        103: ["T19", "D23"],
+        102: ["T20", "D21"],
+        101: ["T17", "D25"],
+        100: ["T20", "D20"],
+        99: [],
+        98: ["T20", "D19"],
+        97: ["T19", "D20"],
+        96: ["T20", "D18"],
+        95: ["T19", "D19"],
+        94: ["T18", "D20"],
+        93: ["T19", "D18"],
+        92: ["T20", "D16"],
+        91: ["T17", "D20"],
+        90: ["T18", "D18"],
+        89: ["T19", "D16"],
+        88: ["T20", "D14"],
+        87: ["T17", "D18"],
+        86: ["T18", "D16"],
+        85: ["T15", "D20"],
+        84: ["T20", "D12"],
+        83: ["T17", "D16"],
+        82: ["T14", "D20"],
+        81: ["T19", "D12"],
+        80: ["T20", "D10"],
+        79: ["T13", "D20"],
+        78: ["T18", "D12"],
+        77: ["T19", "D10"],
+        76: ["T20", "D8"],
+        75: ["T17", "D12"],
+        74: ["T14", "D16"],
+        73: ["T19", "D8"],
+        72: ["T16", "D12"],
+        71: ["T13", "D16"],
+        70: ["T18", "D8"],
+        69: ["T19", "D6"],
+        68: ["T20", "D4"],
+        67: ["T17", "D8"],
+        66: ["T10", "D18"],
+        65: ["25", "D20"],
+        64: ["T16", "D8"],
+        63: ["T13", "D12"],
+        62: ["T10", "D16"],
+        61: ["25", "D18"],
+        60: ["20", "D20"],
+        59: ["19", "D20"],
+        58: ["18", "D20"],
+        57: ["17", "D20"],
+        56: ["16", "D20"],
+        55: ["15", "D20"],
+        54: ["14", "D20"],
+        53: ["13", "D20"],
+        52: ["12", "D20"],
+        51: ["11", "D20"],
+        50: ["Bull"],
+        49: ["9", "D20"],
+        48: ["16", "D16"],
+        47: ["7", "D20"],
+        46: ["6", "D20"],
+        45: ["13", "D16"],
+        44: ["12", "D16"],
+        43: ["3", "D20"],
+        42: ["10", "D16"],
+        41: ["9", "D16"],
+        40: ["D20"],
+        38: ["D19"],
+        36: ["D18"],
+        34: ["D17"],
+        32: ["D16"],
+        30: ["D15"],
+        28: ["D14"],
+        26: ["D13"],
+        24: ["D12"],
+        22: ["D11"],
+        20: ["D10"],
+        18: ["D9"],
+        16: ["D8"],
+        14: ["D7"],
+        12: ["D6"],
+        10: ["D5"],
+        8: ["D4"],
+        6: ["D3"],
+        4: ["D2"],
+        2: ["D1"],
+      };
+
+      function labelToDart(label) {
+        const norm = label.toUpperCase();
+        if (norm === "BULL") return makeDart("BULL", 25);
+        if (norm === "25") return makeDart("OUTER", 25);
+        const m = /^(S|D|T)(\d{1,2})$/.exec(norm);
+        if (!m) return null;
+        const seg = m[1];
+        const v = parseInt(m[2], 10);
+        if (v < 1 || v > 20) return null;
+        if (seg === "T" && v === 25) return null;
+        if (seg === "D" && v === 25) return null;
+        return makeDart(seg, v);
+      }
+
+      function isCheckout(score, dartsLeft) {
+        if (score <= 1) return false;
+        if (dartsLeft >= 3) {
+          if (score > 170) return false;
+          return !NO_CHECKOUT_3_DART.has(score);
+        }
+        if (dartsLeft === 2) {
+          if (score > 110) return false;
+          return (SEEDED_CHECKOUTS[score]?.length ?? 0) > 0;
+        }
+        return score === 50 || (score % 2 === 0 && score >= 2 && score <= 40);
+      }
+
+      function getCheckoutRoute(score, favDoubleEven, dartsLeft) {
+        if (SEEDED_CHECKOUTS[score] && SEEDED_CHECKOUTS[score].length > 0) {
+          const route = [...SEEDED_CHECKOUTS[score]];
+          const last = route[route.length - 1];
+          if (last?.startsWith("D") || last === "Bull") {
+            const lastDouble = last === "Bull" ? 50 : parseInt(last.slice(1), 10) * 2;
+            if (lastDouble !== favDoubleEven) {
+              if (favDoubleEven === 32) {
+                if (score === 80) return ["T16", "D16"];
+                if (score === 72) return ["T16", "D12"];
+              }
+            }
+          }
+          return route;
+        }
+
+        if (!isCheckout(score, dartsLeft)) return [];
+
+        if (dartsLeft === 1) {
+          if (score === 50) return ["Bull"];
+          if (score % 2 === 0 && score >= 2 && score <= 40) return ["D" + score / 2];
+          return [];
+        }
+
+        const favD = favDoubleEven === 50 ? 50 : favDoubleEven;
+        const needBeforeDouble = score - favD;
+        const oneDartOptions = [];
+        if (needBeforeDouble === 50) oneDartOptions.push("Bull");
+        if (needBeforeDouble >= 1 && needBeforeDouble <= 20) oneDartOptions.push("S" + needBeforeDouble);
+        if (needBeforeDouble % 3 === 0 && needBeforeDouble / 3 >= 1 && needBeforeDouble / 3 <= 20)
+          oneDartOptions.push("T" + needBeforeDouble / 3);
+        if (needBeforeDouble % 2 === 0 && needBeforeDouble / 2 >= 1 && needBeforeDouble / 2 <= 20)
+          oneDartOptions.push("D" + needBeforeDouble / 2);
+        if (oneDartOptions.length > 0) return [oneDartOptions[0], favD === 50 ? "Bull" : "D" + favD / 2];
+
+        const primes = [20, 19, 18, 17, 16];
+        for (const base of primes) {
+          const tryT = score - base * 3;
+          if (tryT > 1 && tryT <= 110) {
+            const tail = getCheckoutRoute(tryT, favDoubleEven, 2);
+            if (tail.length) return ["T" + base, ...tail];
+          }
+        }
+        for (const base of primes) {
+          const tryS = score - base;
+          if (tryS > 1 && tryS <= 110) {
+            const tail = getCheckoutRoute(tryS, favDoubleEven, 2);
+            if (tail.length) return ["S" + base, ...tail];
+          }
+        }
+        return [];
+      }
+
+      /*************************
+       * Input Parsing & Validation
+       *************************/
+
+      function parseTypedInput(raw) {
+        const s = raw.trim();
+        if (!s) return { ok: false, reason: "Empty" };
+        const upper = s.toUpperCase();
+
+        if (upper === "BULL" || upper === "DBULL" || upper === "D BULL") {
+          return { ok: true, dart: makeDart("BULL", 25) };
+        }
+        if (upper === "OUTER" || upper === "25") {
+          return { ok: true, dart: makeDart("OUTER", 25) };
+        }
+        if (/^\d{1,2}$/.test(upper)) {
+          const n = parseInt(upper, 10);
+          if (n === 0) return { ok: true, dart: makeDart("S", 1) }; // treated as miss later
+          if (n >= 1 && n <= 20) return { ok: true, dart: makeDart("S", n) };
+          if (n === 25) return { ok: true, dart: makeDart("OUTER", 25) };
+          if (n === 50) return { ok: true, dart: makeDart("BULL", 25) };
+          return { ok: false, reason: "Number not allowed" };
+        }
+
+        const m = /^(S|D|T)\s*(\d{1,2})$/.exec(upper);
+        if (m) {
+          const seg = m[1];
+          const val = parseInt(m[2], 10);
+          if (val < 1 || val > 20) return { ok: false, reason: "Value must be 1–20" };
+          if (seg === "T" && val === 25) return { ok: false, reason: "No T25" };
+          if (seg === "D" && val === 25) return { ok: false, reason: "No D25 (use Bull)" };
+          return { ok: true, dart: makeDart(seg, val) };
+        }
+
+        return { ok: false, reason: "Invalid format" };
+      }
+
+      /*************************
+       * Simple UI atoms
+       *************************/
+
+      function TwButton({ className = "", children, variant = "solid", size = "md", ...props }) {
+        const sizes = {
+          sm: "px-3 py-2 text-sm",
+          md: "px-4 py-2",
+          lg: "px-5 py-3 text-lg",
+        };
+        const variants = {
+          solid: "bg-indigo-600 text-white hover:opacity-90",
+          outline: "border border-border bg-transparent hover:bg-muted",
+          ghost: "bg-transparent hover:bg-muted",
+        };
+        return (
+          <button
+            className={`rounded-2xl font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-600 ${sizes[size]} ${variants[variant]} ${className}`}
+            {...props}
+          >
+            {children}
+          </button>
+        );
+      }
+
+      function Card({ className = "", children }) {
+        return <div className={`rounded-2xl border border-border bg-card text-card-foreground shadow ${className}`}>{children}</div>;
+      }
+      function CardBody({ className = "", children }) {
+        return <div className={`p-4 ${className}`}>{children}</div>;
+      }
+
+      /*************************
+       * Hooks: theme & sound
+       *************************/
+
+      function useTheme(setting) {
+        useEffect(() => {
+          const root = document.documentElement;
+          const systemDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+          const shouldDark = setting === "dark" || (setting === "system" && systemDark);
+          root.classList.toggle("dark", shouldDark);
+        }, [setting]);
+      }
+
+      function useBeep(enabled) {
+        const ctxRef = useRef(null);
+        function play() {
+          if (!enabled) return;
+          try {
+            if (!ctxRef.current) {
+              const AC = window.AudioContext || window.webkitAudioContext;
+              if (!AC) return;
+              ctxRef.current = new AC();
+            }
+            const ctx = ctxRef.current;
+            const o = ctx.createOscillator();
+            const g = ctx.createGain();
+            o.type = "triangle";
+            o.frequency.value = 880;
+            g.gain.value = 0.0025;
+            o.connect(g);
+            g.connect(ctx.destination);
+            o.start();
+            setTimeout(() => o.stop(), 120);
+          } catch {}
+        }
+        return play;
+      }
+
+      /*************************
+       * Main App Component
+       *************************/
+
+      function MobileScorer() {
+        // Settings
+        const [settings, setSettings] = useState(() => loadSettings());
+        useTheme(settings.theme);
+        useEffect(() => saveSettings(settings), [settings]);
+        const beep = useBeep(settings.sound);
+
+        // Game state
+        const [state, setState] = useState(() => loadState() || { currentScore: START_SCORE, turns: [], status: "playing" });
+        useEffect(() => saveState(state), [state]);
+
+        // Current turn darts
+        const [currentDarts, setCurrentDarts] = useState([]);
+        const [bustThisTurn, setBustThisTurn] = useState(false);
+
+        // UI
+        const [tab, setTab] = useState("KEYPAD");
+        const [typedInput, setTypedInput] = useState("");
+        const [typedError, setTypedError] = useState(null);
+        const [toast, setToast] = useState(null);
+        const toastTimeout = useRef(null);
+
+        function showToast(msg) {
+          setToast(msg);
+          if (toastTimeout.current) window.clearTimeout(toastTimeout.current);
+          toastTimeout.current = window.setTimeout(() => setToast(null), 2000);
+        }
+
+        // Stats
+        const dartsThrown = useMemo(() => state.turns.reduce((acc, t) => acc + t.darts.length, 0), [state.turns]);
+        const totalScored = useMemo(() => START_SCORE - state.currentScore, [state.currentScore]);
+        const ppd = dartsThrown > 0 ? totalScored / dartsThrown : 0;
+        const threeDA = ppd * 3;
+
+        // Checkout hint
+        const dartsLeftThisTurn = 3 - currentDarts.length;
+        const checkoutEligible = isCheckout(state.currentScore, dartsLeftThisTurn);
+        const checkoutRoute = checkoutEligible ? getCheckoutRoute(state.currentScore, settings.favouriteDouble, dartsLeftThisTurn) : [];
+
+        // A11y live refs
+        const scoreLiveRef = useRef(null);
+        const hintLiveRef = useRef(null);
+
+        const typeInputRef = useRef(null);
+
+        useEffect(() => {
+          scoreLiveRef.current?.setAttribute("data-score", String(state.currentScore));
+          if (checkoutRoute.length) hintLiveRef.current?.setAttribute("data-hint", checkoutRoute.join(", "));
+        }, [state.currentScore, checkoutRoute.join("|")]);
+
+        // Handle adding a dart
+        function addDart(d) {
+          if (state.status === "gameover") return;
+          if (currentDarts.length >= 3) return;
+          if (bustThisTurn) return;
+
+          // Treat typed 0 as a miss (points 0)
+          if (d.label === "S1" && d.points === 1 && typedInput.trim() === "0") {
+            d = { ...d, points: 0, label: "0" };
+          }
+
+          const newDarts = [...currentDarts, d];
+          setCurrentDarts(newDarts);
+
+          const partial = scoreTurn(state.currentScore, newDarts);
+
+          if (partial.bust) {
+            setBustThisTurn(true);
+            showToast("BUST – score reverts");
+            return;
+          }
+
+          if (partial.finished) {
+            commitTurn(newDarts, true);
+            beep();
+            return;
+          }
+
+          if (newDarts.length === 3) {
+            commitTurn(newDarts, false);
+          }
+        }
+
+        function commitTurn(darts, finished) {
+          const res = scoreTurn(state.currentScore, darts);
+          const turn = {
+            darts,
+            isBust: res.bust,
+            startScore: state.currentScore,
+            endScore: res.bust ? state.currentScore : res.nextScore,
+          };
+          const nextState = {
+            currentScore: res.bust ? state.currentScore : res.nextScore,
+            turns: [...state.turns, turn],
+            status: finished ? "gameover" : "playing",
+          };
+          setState(nextState);
+          setCurrentDarts([]);
+          setBustThisTurn(false);
+          if (finished) {
+            showToast(`Leg won in ${dartsThrown + darts.length} darts – 3DA ${threeDA.toFixed(1)}`);
+          }
+          setTimeout(() => typeInputRef.current?.focus(), 50);
+        }
+
+        function undoLastDart() {
+          if (currentDarts.length === 0) return;
+          const nd = [...currentDarts];
+          nd.pop();
+          setCurrentDarts(nd);
+          setBustThisTurn(false);
+        }
+
+        function clearTurn() {
+          setCurrentDarts([]);
+          setBustThisTurn(false);
+        }
+
+        function resetLeg() {
+          setState({ currentScore: START_SCORE, turns: [], status: "playing" });
+          setCurrentDarts([]);
+          setBustThisTurn(false);
+          showToast("Leg reset");
+        }
+
+        // Typed input handling
+        function onTypedChange(v) {
+          setTypedInput(v);
+          if (!v.trim()) {
+            setTypedError(null);
+            return;
+          }
+          const parsed = parseTypedInput(v);
+          if (!parsed.ok) {
+            setTypedError(parsed.reason);
+          } else {
+            setTypedError(null);
+          }
+        }
+
+        function submitTyped() {
+          if (!typedInput.trim()) return;
+          const parsed = parseTypedInput(typedInput);
+          if (!parsed.ok) {
+            showToast("Invalid entry: " + parsed.reason);
+            return;
+          }
+          addDart(parsed.dart);
+          setTypedInput("");
+          setTypedError(null);
+        }
+
+        // Keypad state
+        const [selectedNumber, setSelectedNumber] = useState(null);
+        function tapNumber(n) {
+          setSelectedNumber(n);
+        }
+        function tapSegment(seg) {
+          if (selectedNumber == null) return;
+          if (selectedNumber === 25 && seg === "T") return; // no T25
+          if (selectedNumber === 25 && seg === "D") {
+            addDart(makeDart("BULL", 25));
+          } else if (selectedNumber === 25 && seg === "S") {
+            addDart(makeDart("OUTER", 25));
+          } else if (selectedNumber === 50) {
+            addDart(makeDart("BULL", 25));
+          } else {
+            addDart(makeDart(seg, Math.max(1, Math.min(20, selectedNumber))));
+          }
+          setSelectedNumber(null);
+        }
+
+        // History (last 5, edit last 3)
+        const [editIndex, setEditIndex] = useState(null);
+        const canEditIndices = useMemo(() => {
+          const maxEditable = 3;
+          const start = Math.max(0, state.turns.length - maxEditable);
+          return new Set(Array.from({ length: state.turns.length - start }, (_, i) => i + start));
+        }, [state.turns.length]);
+
+        const [editDarts, setEditDarts] = useState([]);
+        useEffect(() => {
+          if (editIndex != null) setEditDarts(state.turns[editIndex].darts);
+        }, [editIndex]);
+
+        function recalcFrom(index, newTurnDarts) {
+          let score = START_SCORE;
+          const newTurns = [];
+          for (let i = 0; i < state.turns.length; i++) {
+            const darts = i === index ? newTurnDarts : state.turns[i].darts;
+            const res = scoreTurn(score, darts);
+            const t = {
+              darts,
+              isBust: res.bust,
+              startScore: score,
+              endScore: res.bust ? score : res.nextScore,
+            };
+            newTurns.push(t);
+            score = t.endScore;
+          }
+          setState({ currentScore: score, turns: newTurns, status: score === 0 ? "gameover" : "playing" });
+        }
+
+        function saveEdit() {
+          if (editIndex == null) return;
+          recalcFrom(editIndex, editDarts);
+          setEditIndex(null);
+          showToast("Turn updated");
+        }
+
+        function cancelEdit() {
+          setEditIndex(null);
+        }
+
+        // Minimal tests
+        const tests = useMemo(() => runTests(), []);
+
+        return (
+          <div className="mx-auto max-w-md min-h-[100dvh] bg-background text-foreground p-3 sm:p-4 flex flex-col gap-3">
+            {/* Header / Score */}
+            <header className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-xs opacity-70">Remaining</div>
+                <div aria-live="polite" ref={scoreLiveRef} className="text-5xl font-extrabold tracking-tight">{state.currentScore}</div>
+                <div className="text-xs mt-1 opacity-70">Leg status: {state.status === "playing" ? "In play" : "Won"}</div>
+              </div>
+              <div className="text-right">
+                <div className="text-xs opacity-70">Darts this turn</div>
+                <div className="text-2xl font-semibold">{currentDarts.length}/3</div>
+                <div className="text-xs opacity-70 mt-1">Thrown: {dartsThrown} • 3DA: {threeDA.toFixed(1)}</div>
+              </div>
+            </header>
+
+            {/* Checkout Hint */}
+            <div aria-live="polite" ref={hintLiveRef}>
+              {checkoutRoute.length > 0 ? (
+                <Card className="bg-emerald-600/10 border-emerald-600/30">
+                  <CardBody className="flex items-center justify-between gap-2">
+                    <div className="font-medium">Checkout</div>
+                    <div className="flex flex-wrap gap-2">
+                      {checkoutRoute.map((lab, i) => (
+                        <span key={i} className="px-2 py-1 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-sm">{lab}</span>
+                      ))}
+                    </div>
+                  </CardBody>
+                </Card>
+              ) : (
+                <Card className="bg-muted/40">
+                  <CardBody className="text-sm opacity-70">No finish in {3 - currentDarts.length} dart(s) – set up your favourite double.</CardBody>
+                </Card>
+              )}
+            </div>
+
+            {/* Turn Entry */}
+            <Card>
+              <CardBody className="flex flex-col gap-3">
+                {/* Tabs */}
+                <div className="grid grid-cols-2 gap-2">
+                  <TwButton aria-label="Type entry" variant={tab === "TYPE" ? "solid" : "outline"} onClick={() => setTab("TYPE")}>Type</TwButton>
+                  <TwButton aria-label="Keypad entry" variant={tab === "KEYPAD" ? "solid" : "outline"} onClick={() => setTab("KEYPAD")}>Keypad</TwButton>
+                </div>
+
+                {/* Current darts display */}
+                <div className="flex items-center gap-2">
+                  {[0, 1, 2].map((i) => (
+                    <div key={i} className={`flex-1 rounded-xl border p-2 h-12 flex items-center justify-center text-lg ${currentDarts[i] ? "bg-muted" : "opacity-60"}`}>
+                      {currentDarts[i] ? (currentDarts[i].label || prettyDart(currentDarts[i])) + ` (${currentDarts[i].points})` : `Dart ${i + 1}`}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-2">
+                  <TwButton aria-label="Undo last dart" className="flex-1" variant="outline" onClick={undoLastDart}>Undo</TwButton>
+                  <TwButton aria-label="Clear turn" className="flex-1" variant="outline" onClick={clearTurn}>Clear</TwButton>
+                  <TwButton aria-label="Submit turn" className="flex-1" onClick={() => commitTurn(currentDarts, false)} disabled={currentDarts.length === 0 || bustThisTurn}>Submit</TwButton>
+                </div>
+
+                {/* Type Tab */}
+                {tab === "TYPE" && (
+                  <div>
+                    <label htmlFor="typed" className="text-sm font-medium">Enter dart (e.g., T20, D16, 25, Bull)</label>
+                    <div className="mt-1 flex gap-2">
+                      <input
+                        id="typed"
+                        ref={typeInputRef}
+                        value={typedInput}
+                        onChange={(e) => onTypedChange(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") submitTyped();
+                        }}
+                        inputMode="text"
+                        className="flex-1 rounded-xl border px-3 py-2 bg-background"
+                        placeholder="T20"
+                        aria-invalid={!!typedError}
+                        aria-describedby={typedError ? "typed-error" : undefined}
+                      />
+                      <TwButton onClick={submitTyped} aria-label="Add dart">Add</TwButton>
+                    </div>
+                    {typedError && (
+                      <div id="typed-error" className="mt-1 text-sm text-red-500">{typedError}</div>
+                    )}
+                    <div className="mt-2 text-xs opacity-70">Allowed: S/D/T 1–20, 25 (outer), Bull (50), or numbers 1–20/25/50. “D25” invalid.</div>
+                  </div>
+                )}
+
+                {/* Keypad Tab */}
+                {tab === "KEYPAD" && (
+                  <div className="flex flex-col gap-3">
+                    <div className="grid grid-cols-5 gap-2">
+                      {[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,25,50].map((n) => (
+                        <button key={n}
+                          onClick={() => tapNumber(n)}
+                          className={`rounded-xl border px-3 py-3 text-lg ${selectedNumber === n ? "bg-indigo-600 text-white" : "bg-background"}`}
+                          aria-label={`Select ${n === 50 ? "Bull" : n === 25 ? "Outer 25" : n}`}
+                        >
+                          {n === 50 ? "Bull" : n}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex gap-2">
+                      <TwButton className="flex-1" variant="outline" onClick={() => tapSegment("S")} disabled={selectedNumber == null}>Single</TwButton>
+                      <TwButton className="flex-1" variant="outline" onClick={() => tapSegment("D")} disabled={selectedNumber == null || selectedNumber === 50}>Double</TwButton>
+                      <TwButton className="flex-1" variant="outline" onClick={() => tapSegment("T")} disabled={selectedNumber == null || selectedNumber >= 25}>Treble</TwButton>
+                    </div>
+                  </div>
+                )}
+
+                {/* Bust banner */}
+                {bustThisTurn && (
+                  <div role="alert" className="rounded-xl border border-red-400 bg-red-500/10 text-red-600 px-3 py-2 text-sm">BUST – score reverts to {state.currentScore}</div>
+                )}
+              </CardBody>
+            </Card>
+
+            {/* Turn History */}
+            <Card>
+              <CardBody>
+                <div className="flex items-center justify-between">
+                  <div className="font-semibold">Last turns</div>
+                  <div className="text-xs opacity-70">Edit last 3</div>
+                </div>
+                <div className="mt-2 flex flex-col gap-2 max-h-56 overflow-auto">
+                  {state.turns.slice(-5).map((t, i) => {
+                    const globalIndex = state.turns.length - 5 + i;
+                    const actualIndex = Math.max(0, globalIndex);
+                    const showIndex = state.turns.length - 5 >= 0 ? actualIndex : i;
+                    const canEdit = canEditIndices.has(actualIndex);
+                    const label = t.isBust ? "BUST" : `${t.startScore - t.endScore}`;
+                    const dartsLbl = t.darts.map(prettyDart).join(", ");
+                    return (
+                      <div key={i} className="flex items-center justify-between gap-2 rounded-xl border px-3 py-2">
+                        <div>
+                          <div className="text-sm font-medium">{label}</div>
+                          <div className="text-xs opacity-70">{dartsLbl} → {t.endScore}</div>
+                        </div>
+                        {canEdit && (
+                          <TwButton size="sm" variant="outline" aria-label="Edit turn" onClick={() => setEditIndex(actualIndex)}>Edit</TwButton>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {state.turns.length === 0 && (
+                    <div className="text-sm opacity-70">No turns yet.</div>
+                  )}
+                </div>
+              </CardBody>
+            </Card>
+
+            {/* Controls */}
+            <Card>
+              <CardBody className="flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <div className="font-semibold">Controls</div>
+                  <TwButton variant="outline" onClick={resetLeg}>Reset leg</TwButton>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-medium">Favourite double</div>
+                    <div className="text-xs opacity-70">Bias checkout routes (2..40 even, or 50 for Bull)</div>
+                  </div>
+                  <select
+                    aria-label="Favourite double"
+                    value={settings.favouriteDouble}
+                    onChange={(e) => setSettings((s) => ({ ...s, favouriteDouble: parseInt(e.target.value, 10) }))}
+                    className="rounded-xl border bg-background px-3 py-2"
+                  >
+                    {ALL_DOUBLES.map((d) => (
+                      <option key={d} value={d}>{d === 50 ? "Bull (50)" : `D${d/2} (${d})`}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-medium">Theme</div>
+                    <div className="text-xs opacity-70">Follows system by default</div>
+                  </div>
+                  <div className="flex gap-2">
+                    <TwButton variant={settings.theme === "system" ? "solid" : "outline"} onClick={() => setSettings((s) => ({ ...s, theme: "system" }))}>System</TwButton>
+                    <TwButton variant={settings.theme === "light" ? "solid" : "outline"} onClick={() => setSettings((s) => ({ ...s, theme: "light" }))}>Light</TwButton>
+                    <TwButton variant={settings.theme === "dark" ? "solid" : "outline"} onClick={() => setSettings((s) => ({ ...s, theme: "dark" }))}>Dark</TwButton>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-medium">Sound on checkout</div>
+                    <div className="text-xs opacity-70">Tiny beep when leg is won</div>
+                  </div>
+                  <TwButton variant={settings.sound ? "solid" : "outline"} onClick={() => setSettings((s) => ({ ...s, sound: !s.sound }))}>{settings.sound ? "On" : "Off"}</TwButton>
+                </div>
+              </CardBody>
+            </Card>
+
+            {/* Tests & Footer */}
+            <div className="mt-auto pb-2">
+              <div className="text-xs opacity-70">Tests: {tests.passed}/{tests.total} passed{tests.passed !== tests.total ? ` – ${tests.failed.join(", ")}` : ""}</div>
+              <div className="text-[10px] opacity-60 mt-1">Mobile-only UI • Double-out enforced • Edit last 3 turns • Data saved locally</div>
+            </div>
+
+            {/* Edit Drawer */}
+            {editIndex != null && (
+              <div className="fixed inset-0 bg-black/50 flex items-end z-50" role="dialog" aria-modal>
+                <div className="w-full bg-background rounded-t-2xl p-4 border-t max-h-[80dvh] overflow-auto">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="font-semibold">Edit Turn #{editIndex + 1}</div>
+                    <div className="text-xs opacity-70">Recalculate downstream scores</div>
+                  </div>
+                  <div className="flex items-center gap-2 mb-2">
+                    {[0,1,2].map((i) => (
+                      <div key={i} className="flex-1 rounded-xl border p-2 h-12 flex items-center justify-center text-lg">
+                        {editDarts[i] ? prettyDart(editDarts[i]) + ` (${editDarts[i].points})` : `Dart ${i+1}`}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-5 gap-2 mb-2">
+                    {[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,25,50].map((n) => (
+                      <button key={n} onClick={() => setSelectedNumber(n)} className={`rounded-xl border px-3 py-3 text-lg ${selectedNumber === n ? "bg-indigo-600 text-white" : "bg-background"}`}>{n===50?"Bull":n}</button>
+                    ))}
+                  </div>
+                  <div className="flex gap-2 mb-4">
+                    <TwButton className="flex-1" variant="outline" onClick={() => { if (selectedNumber==null) return; appendEdit("S"); }}>Single</TwButton>
+                    <TwButton className="flex-1" variant="outline" onClick={() => { if (selectedNumber==null || selectedNumber===50) return; appendEdit("D"); }}>Double</TwButton>
+                    <TwButton className="flex-1" variant="outline" onClick={() => { if (selectedNumber==null || selectedNumber>=25) return; appendEdit("T"); }}>Treble</TwButton>
+                    <TwButton className="flex-1" variant="outline" onClick={() => { setEditDarts([]); }}>Clear</TwButton>
+                  </div>
+                  <div className="flex gap-2">
+                    <TwButton className="flex-1" variant="outline" onClick={cancelEdit}>Cancel</TwButton>
+                    <TwButton className="flex-1" onClick={saveEdit} disabled={editDarts.length===0}>Save</TwButton>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Toast */}
+            <div className="pointer-events-none fixed bottom-3 inset-x-0 flex justify-center z-50">
+              {toast && (
+                <div role="alert" className="pointer-events-auto rounded-2xl bg-foreground text-background px-4 py-2 shadow">
+                  {toast}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+
+        // helpers
+        function appendEdit(seg) {
+          if (editIndex == null || selectedNumber == null) return;
+          let d;
+          if (selectedNumber === 25 && seg === "S") d = makeDart("OUTER", 25);
+          else if (selectedNumber === 25 && seg === "D") d = makeDart("BULL", 25);
+          else if (selectedNumber === 50) d = makeDart("BULL", 25);
+          else d = makeDart(seg, Math.max(1, Math.min(20, selectedNumber)));
+          setEditDarts((prev) => prev.length >= 3 ? [d] : [...prev, d]);
+        }
+      }
+
+      /*************************
+       * Pretty printing & tests
+       *************************/
+
+      function prettyDart(d) {
+        if (d.label) return d.label;
+        if (d.segment === "OUTER") return "25";
+        if (d.segment === "BULL") return "Bull";
+        if (d.segment === "S") return `S${d.value}`;
+        if (d.segment === "D") return `D${d.value}`;
+        if (d.segment === "T") return `T${d.value}`;
+        return `${d.points}`;
+      }
+
+      function runTests() {
+        const failed = [];
+        function assert(name, cond) { if (!cond) failed.push(name); }
+
+        // 1) Simple subtract no bust
+        let r = scoreTurn(501, [makeDart("T", 20)]);
+        assert("T20 from 501 → 441", r.nextScore === 441 && !r.bust);
+
+        // 2) Bust below zero
+        r = scoreTurn(10, [makeDart("T", 20)]);
+        assert("Bust below zero", r.bust && r.nextScore === 10);
+
+        // 3) Hit 1 → bust
+        r = scoreTurn(3, [makeDart("S", 2)]);
+        assert("Leave 1 bust", r.bust && r.nextScore === 3);
+
+        // 4) Valid double-out
+        r = scoreTurn(40, [makeDart("D", 20)]);
+        assert("D20 finishes", r.finished && r.nextScore === 0);
+
+        // 5) Invalid finish (not double)
+        r = scoreTurn(40, [makeDart("S", 20), makeDart("S", 20)]);
+        assert("Finish on single bust", r.bust && r.nextScore === 40);
+
+        // 6) Checkout checks
+        assert("170 is checkout in 3 darts", isCheckout(170, 3) === true);
+        assert("169 is not checkout in 3 darts", isCheckout(169, 3) === false);
+        const route = getCheckoutRoute(170, 32, 3);
+        assert("170 route seeded", route.join("-") === "T20-T20-Bull");
+
+        const total = 6;
+        return { passed: total - failed.length, total, failed };
+      }
+
+      // Mount
+      ReactDOM.createRoot(document.getElementById("root")).render(<MobileScorer />);
+    </script>
+  </body>
+</html>
+
