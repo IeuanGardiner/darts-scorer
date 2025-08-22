@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Darts Scorer - Training Mode</title>
+
+    <!-- Tailwind CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Tiny CSS to map the “token” classes used in the app -->
+    <style>
+      :root { color-scheme: light dark; }
+      .bg-background { background-color: #ffffff; }
+      .dark .bg-background { background-color: #0a0a0a; }
+
+      .text-foreground { color: #0a0a0a; }
+      .dark .text-foreground { color: #fafafa; }
+
+      .bg-card { background-color: #ffffff; }
+      .dark .bg-card { background-color: #0f0f0f; }
+
+      .text-card-foreground { color: #0a0a0a; }
+      .dark .text-card-foreground { color: #fafafa; }
+
+      .border-border { border-color: #e5e7eb; }
+      .dark .border-border { border-color: #1f2937; }
+
+      .bg-muted { background-color: #f4f4f5; }
+      .dark .bg-muted { background-color: rgba(39,39,42,0.4); }
+    </style>
+
+    <script src="settings.js"></script>
+    <script src="global-header.js" defer></script>
+
+    <!-- React (production) + ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+
+    <!-- Babel so we can write JSX here -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  </head>
+  <body class="bg-background text-foreground">
+    <div id="root"></div>
+
+    <script type="text/babel">
+      const { useState } = React;
+
+      function TrainingMode() {
+        const targets = React.useMemo(() => {
+          const ds = Array.from({ length: 20 }, (_, i) => i + 1);
+          return [...ds, 'Bull'];
+        }, []);
+        const total = targets.length;
+        const [index, setIndex] = useState(0);
+        const [score, setScore] = useState(0);
+        const [hits, setHits] = useState(0);
+
+        const current = targets[index];
+        const finished = index >= total;
+        const hitRate = total === 0 ? 0 : Math.round((hits / total) * 100);
+
+        function throwDart(hit) {
+          if (finished) return;
+          if (hit) {
+            if (current === 'Bull') {
+              setScore(s => s + 2);
+            } else {
+              setScore(s => s + 1);
+            }
+            setHits(h => h + 1);
+          }
+          setIndex(i => i + 1);
+        }
+
+        function restart() {
+          setIndex(0);
+          setScore(0);
+          setHits(0);
+        }
+
+        return (
+          <div className="pt-24 flex flex-col items-center gap-6 p-4">
+            {!finished && (
+              <>
+                <div className="text-2xl font-bold">
+                  Target: {current === 'Bull' ? 'Bull' : `Double ${current}`}
+                </div>
+                <div className="text-lg">
+                  Attempt {index + 1} of {total}
+                </div>
+                <div className="text-xl">Score: {score}</div>
+                <div className="flex gap-4 pt-2">
+                  <button
+                    className="px-6 py-3 rounded-xl bg-green-600 text-white"
+                    onClick={() => throwDart(true)}
+                  >
+                    Hit
+                  </button>
+                  <button
+                    className="px-6 py-3 rounded-xl bg-red-600 text-white"
+                    onClick={() => throwDart(false)}
+                  >
+                    Miss
+                  </button>
+                </div>
+              </>
+            )}
+            {finished && (
+              <div className="fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-50">
+                <div className="bg-card text-card-foreground p-8 rounded-2xl flex flex-col gap-4 text-center">
+                  <h2 className="text-2xl font-bold">Training Complete</h2>
+                  <div className="text-lg">Score: {score}</div>
+                  <div className="text-lg">Hit Rate: {hits}/{total} ({hitRate}%)</div>
+                  <div className="flex gap-4 pt-2">
+                    <button
+                      className="flex-1 px-4 py-2 rounded-xl bg-muted"
+                      onClick={restart}
+                    >
+                      Play Again
+                    </button>
+                    <button
+                      className="flex-1 px-4 py-2 rounded-xl bg-muted"
+                      onClick={() => { window.location.href = 'index.html'; }}
+                    >
+                      Exit
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      ReactDOM.createRoot(document.getElementById('root')).render(<TrainingMode />);
+    </script>
+  </body>
+</html>
+
