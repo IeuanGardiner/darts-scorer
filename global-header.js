@@ -62,7 +62,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Keep overlay starting below the header
   const setOverlayPadding = () => {
-    overlay.style.paddingTop = `${header.offsetHeight}px`;
+    const h = header.offsetHeight;
+    overlay.style.paddingTop = `${h}px`;
+    document.documentElement.style.setProperty('--header-h', `${h}px`);
   };
   setOverlayPadding();
   window.addEventListener('resize', setOverlayPadding);
