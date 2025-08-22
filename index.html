@@ -654,6 +654,7 @@
                   <div className="flex items-center gap-2 mt-1 text-xs opacity-70">
                     <span>Leg status: {state.status === "playing" ? "In play" : "Won"}</span>
                     <TwButton size="sm" variant="outline" onClick={() => resetLeg()}>Reset</TwButton>
+                    <TwButton size="sm" variant="outline" onClick={() => setShowControls(true)}>Settings</TwButton>
                   </div>
                 </div>
               <div className="text-right">
@@ -763,48 +764,6 @@
               </CardBody>
             </Card>
 
-              {/* Controls */}
-              {showControls && (
-              <Card>
-                <CardBody className="flex flex-col gap-3">
-                  <div className="font-semibold">Controls</div>
-                  <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="text-sm font-medium">Favourite double</div>
-                    <div className="text-xs opacity-70">Bias checkout routes (2..40 even, or 50 for Bull)</div>
-                  </div>
-                  <select
-                    aria-label="Favourite double"
-                    value={settings.favouriteDouble}
-                    onChange={(e) => setSettings((s) => ({ ...s, favouriteDouble: parseInt(e.target.value, 10) }))}
-                    className="rounded-xl border bg-background px-3 py-2"
-                  >
-                    {ALL_DOUBLES.map((d) => (
-                      <option key={d} value={d}>{d === 50 ? "Bull (50)" : `D${d/2} (${d})`}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="text-sm font-medium">Theme</div>
-                    <div className="text-xs opacity-70">Follows system by default</div>
-                  </div>
-                  <div className="flex gap-2">
-                    <TwButton variant={settings.theme === "system" ? "solid" : "outline"} onClick={() => setSettings((s) => ({ ...s, theme: "system" }))}>System</TwButton>
-                    <TwButton variant={settings.theme === "light" ? "solid" : "outline"} onClick={() => setSettings((s) => ({ ...s, theme: "light" }))}>Light</TwButton>
-                    <TwButton variant={settings.theme === "dark" ? "solid" : "outline"} onClick={() => setSettings((s) => ({ ...s, theme: "dark" }))}>Dark</TwButton>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="text-sm font-medium">Sound on checkout</div>
-                    <div className="text-xs opacity-70">Tiny beep when leg is won</div>
-                  </div>
-                  <TwButton variant={settings.sound ? "solid" : "outline"} onClick={() => setSettings((s) => ({ ...s, sound: !s.sound }))}>{settings.sound ? "On" : "Off"}</TwButton>
-                </div>
-                </CardBody>
-              </Card>
-              )}
 
               {/* Tests & Footer */}
             <div className="mt-auto pb-2">
@@ -844,13 +803,60 @@
                   </div>
                 </div>
               </div>
-            )}
+              )}
 
-              {/* Settings Toggle */}
-              <TwButton aria-label="Toggle controls" variant="outline" className="fixed bottom-3 left-3 z-50" size="sm" onClick={() => setShowControls((v) => !v)}>⚙️</TwButton>
+              {/* Settings Screen */}
+              {showControls && (
+                <div className="fixed inset-0 bg-background text-foreground p-4 z-50 overflow-auto" role="dialog" aria-modal>
+                  <div className="max-w-md mx-auto flex flex-col gap-4">
+                    <div className="flex items-center justify-between">
+                      <div className="text-lg font-semibold">Settings</div>
+                      <TwButton size="sm" variant="outline" onClick={() => setShowControls(false)}>Exit</TwButton>
+                    </div>
+                    <Card>
+                      <CardBody className="flex flex-col gap-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <div className="text-sm font-medium">Favourite double</div>
+                            <div className="text-xs opacity-70">Bias checkout routes (2..40 even, or 50 for Bull)</div>
+                          </div>
+                          <select
+                            aria-label="Favourite double"
+                            value={settings.favouriteDouble}
+                            onChange={(e) => setSettings((s) => ({ ...s, favouriteDouble: parseInt(e.target.value, 10) }))}
+                            className="rounded-xl border bg-background px-3 py-2"
+                          >
+                            {ALL_DOUBLES.map((d) => (
+                              <option key={d} value={d}>{d === 50 ? "Bull (50)" : `D${d/2} (${d})`}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <div className="text-sm font-medium">Theme</div>
+                            <div className="text-xs opacity-70">Follows system by default</div>
+                          </div>
+                          <div className="flex gap-2">
+                            <TwButton variant={settings.theme === "system" ? "solid" : "outline"} onClick={() => setSettings((s) => ({ ...s, theme: "system" }))}>System</TwButton>
+                            <TwButton variant={settings.theme === "light" ? "solid" : "outline"} onClick={() => setSettings((s) => ({ ...s, theme: "light" }))}>Light</TwButton>
+                            <TwButton variant={settings.theme === "dark" ? "solid" : "outline"} onClick={() => setSettings((s) => ({ ...s, theme: "dark" }))}>Dark</TwButton>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <div className="text-sm font-medium">Sound on checkout</div>
+                            <div className="text-xs opacity-70">Tiny beep when leg is won</div>
+                          </div>
+                          <TwButton variant={settings.sound ? "solid" : "outline"} onClick={() => setSettings((s) => ({ ...s, sound: !s.sound }))}>{settings.sound ? "On" : "Off"}</TwButton>
+                        </div>
+                      </CardBody>
+                    </Card>
+                  </div>
+                </div>
+              )}
 
               {/* Toast */}
-              <div className="pointer-events-none fixed bottom-3 inset-x-0 flex justify-center z-50">
+              <div className="pointer-events-none fixed bottom-3 inset-x-0 flex justify-center z-40">
                 {toast && (
                   <div role="alert" className="pointer-events-auto rounded-2xl bg-foreground text-background px-4 py-2 shadow">
                     {toast}
