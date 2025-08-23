@@ -21,38 +21,21 @@ document.addEventListener('DOMContentLoaded', () => {
         </button>
       </div>
     </div>
-
-    <!-- Full-screen menu screen -->
-    <div id="menuOverlay"
-         class="fixed inset-0 z-40 hidden bg-card/80 backdrop-blur text-card-foreground"
-         role="dialog" aria-modal="true" aria-labelledby="menuTitle">
-      <div class="mx-auto max-w-5xl px-4 pb-10 flex flex-col gap-4">
-        <div class="flex items-center justify-between mb-4">
-          <h2 id="menuTitle" class="text-2xl font-semibold">Menu</h2>
-          <button id="menuExit" class="px-3 py-2 rounded-xl border border-border" aria-label="Close menu">Exit</button>
-        </div>
-        <nav id="globalMenu" class="flex flex-col gap-2" aria-label="Global">
-          <a href="quickplay.html" class="block px-4 py-3 rounded text-lg hover:bg-muted focus:bg-muted focus:outline-none">Quick Play</a>
-          <a href="training-mode.html" class="block px-4 py-3 rounded text-lg hover:bg-muted focus:bg-muted focus:outline-none">Training Mode</a>
-          <a href="#" data-soon="Multiplayer" class="block px-4 py-3 rounded text-lg hover:bg-muted focus:bg-muted focus:outline-none">Multiplayer</a>
-        </nav>
-      </div>
-    </div>
   `;
 
   document.body.prepend(header);
 
+  const overlay   = window.MenuOverlay && window.MenuOverlay.buildMenuOverlay ? window.MenuOverlay.buildMenuOverlay() : null;
   const menuBtn   = header.querySelector('#menuButton');
   const settings  = header.querySelector('#settingsButton');
-  const overlay   = header.querySelector('#menuOverlay');
-  const menu      = header.querySelector('#globalMenu');
-  const exitBtn   = header.querySelector('#menuExit');
+  const menu      = overlay ? overlay.querySelector('#globalMenu') : null;
+  const exitBtn   = overlay ? overlay.querySelector('#menuExit') : null;
   const supportsInert = 'inert' in document.createElement('div');
 
   // Hide everything except header when menu is open
   const toggleSiblingsHidden = (hide) => {
     [...document.body.children].forEach(el => {
-      if (el === header) return;
+      if (el === header || el === overlay) return;
       if (hide) {
         el.setAttribute('aria-hidden', 'true');
         if (supportsInert) el.inert = true;
@@ -77,10 +60,11 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.classList.toggle('overflow-hidden', lock);
   };
 
-  const firstFocusable = () => overlay.querySelector('a,button,[tabindex]:not([tabindex="-1"])');
+  const firstFocusable = () => overlay ? overlay.querySelector('a,button,[tabindex]:not([tabindex="-1"])') : null;
 
   function openMenu() {
     setHeaderHeight();
+    if (!overlay) return;
     overlay.classList.remove('hidden');
     menuBtn.setAttribute('aria-expanded', 'true');
     menuBtn.setAttribute('aria-label', 'Close menu');
@@ -91,6 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function closeMenu({ returnFocus = true } = {}) {
+    if (!overlay) return;
     overlay.classList.add('hidden');
     menuBtn.setAttribute('aria-expanded', 'false');
     menuBtn.setAttribute('aria-label', 'Open menu');
@@ -102,7 +87,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const isOpen = () => menuBtn.getAttribute('aria-expanded') === 'true';
 
   menuBtn.addEventListener('click', () => (isOpen() ? closeMenu({ returnFocus: false }) : openMenu()));
-  exitBtn.addEventListener('click', () => closeMenu());
+  if (exitBtn) exitBtn.addEventListener('click', () => closeMenu());
 
   // Close with ESC
   document.addEventListener('keydown', (e) => {
@@ -110,17 +95,19 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Click a link
-  menu.addEventListener('click', (e) => {
-    const a = e.target.closest('a[href]');
-    if (!a) return;
-    if (a.dataset.soon) {
-      e.preventDefault();
-      alert(`${a.dataset.soon} coming soon!`);
+  if (menu) {
+    menu.addEventListener('click', (e) => {
+      const a = e.target.closest('a[href]');
+      if (!a) return;
+      if (a.dataset.soon) {
+        e.preventDefault();
+        alert(`${a.dataset.soon} coming soon!`);
+        closeMenu({ returnFocus: false });
+        return;
+      }
       closeMenu({ returnFocus: false });
-      return;
-    }
-    closeMenu({ returnFocus: false });
-  });
+    });
+  }
 
   // Settings button
   settings.addEventListener('click', () => {
