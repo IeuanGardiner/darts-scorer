@@ -70,6 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.documentElement.style.setProperty('--header-h', `${h}px`);
   };
   setOverlayPadding();
+  window.addEventListener('load', setOverlayPadding);
   window.addEventListener('resize', setOverlayPadding);
 
   const lockScroll = (lock) => {
