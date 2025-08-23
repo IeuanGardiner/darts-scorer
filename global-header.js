@@ -3,9 +3,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const header = document.createElement('header');
   header.className = 'fixed top-0 inset-x-0 z-50 bg-card text-card-foreground border-b border-border';
   header.innerHTML = `
-    <div class="mx-auto max-w-5xl flex items-center justify-between p-4">
-      <a href="mode-select.html" class="flex items-center" aria-label="Go to mode select">
-        <img src="images/DartUpLogoSVG.svg" alt="Darts Scorer Logo" class="h-16 w-auto" />
+    <div class="mx-auto max-w-5xl flex items-center justify-between px-4 py-2">
+      <a href="mode-select.html" class="flex items-center text-xl font-bold" aria-label="Go to mode select">
+        DartUp
       </a>
       <div class="flex items-center gap-2">
         <button id="settingsButton" type="button" aria-label="Settings" class="p-2 rounded-md focus:outline-none focus:ring">
