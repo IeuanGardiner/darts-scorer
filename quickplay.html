@@ -769,13 +769,15 @@
               </div>
 
               {state.status === "gameover" && (
-                <div className="fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-[60]">
+                <div className="fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-50">
                   <div className="bg-card text-card-foreground p-8 rounded-2xl flex flex-col gap-4 text-center">
                     <h2 className="text-2xl font-bold">Leg Complete</h2>
-                    <div className="text-lg">Darts Thrown: {dartsThrown}</div>
-                    <div className="text-lg">Highest Score: {highestScore}</div>
-                    <div className="text-lg">3DA: {threeDA.toFixed(1)}</div>
-                    <div className="text-lg">1DA: {ppd.toFixed(1)}</div>
+                    <div className="space-y-1">
+                      <div className="text-lg">Darts Thrown: {dartsThrown}</div>
+                      <div className="text-lg">Highest Score: {highestScore}</div>
+                      <div className="text-lg">Three-Dart Avg: {threeDA.toFixed(1)}</div>
+                      <div className="text-lg">Points Per Dart: {ppd.toFixed(1)}</div>
+                    </div>
                     <div className="flex gap-4 pt-2">
                       <button className="flex-1 px-4 py-2 rounded-xl bg-muted" onClick={() => resetLeg(true)}>
                         Play Again
