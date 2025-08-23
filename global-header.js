@@ -70,6 +70,11 @@ document.addEventListener('DOMContentLoaded', () => {
     document.documentElement.style.setProperty('--header-h', `${h}px`);
   };
   setOverlayPadding();
+  // Ensure the page always starts scrolled to the top. Prepending the header
+  // after the main content can shift the scroll position down, especially on
+  // mobile browsers. Resetting the scroll here keeps the page content visible
+  // without requiring a manual refresh.
+  window.scrollTo(0, 0);
   window.addEventListener('load', setOverlayPadding);
   window.addEventListener('resize', setOverlayPadding);
 
