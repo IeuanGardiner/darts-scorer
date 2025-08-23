@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>
     </div>
 
-    <!-- Full-screen menu screen (sits under the header) -->
+    <!-- Full-screen menu screen -->
     <div id="menuOverlay"
          class="fixed inset-0 z-40 hidden bg-card/80 backdrop-blur text-card-foreground"
          role="dialog" aria-modal="true" aria-labelledby="menuTitle">
@@ -63,15 +63,14 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   };
 
-  // Keep overlay starting below the header
-  const setOverlayPadding = () => {
+  // Update CSS variable for header height
+  const setHeaderHeight = () => {
     const h = header.offsetHeight;
-    overlay.style.paddingTop = `${h}px`;
     document.documentElement.style.setProperty('--header-h', `${h}px`);
   };
-  setOverlayPadding();
-  window.addEventListener('load', setOverlayPadding);
-  window.addEventListener('resize', setOverlayPadding);
+  setHeaderHeight();
+  window.addEventListener('load', setHeaderHeight);
+  window.addEventListener('resize', setHeaderHeight);
 
   const lockScroll = (lock) => {
     document.documentElement.classList.toggle('overflow-hidden', lock);
@@ -81,7 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const firstFocusable = () => overlay.querySelector('a,button,[tabindex]:not([tabindex="-1"])');
 
   function openMenu() {
-    setOverlayPadding();
+    setHeaderHeight();
     overlay.classList.remove('hidden');
     menuBtn.setAttribute('aria-expanded', 'true');
     menuBtn.setAttribute('aria-label', 'Close menu');
