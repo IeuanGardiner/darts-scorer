@@ -33,6 +33,7 @@
     <script src="settings.js"></script>
     <script src="menu-overlay.js" defer></script>
     <script src="global-header.js" defer></script>
+    <script src="global-footer.js" defer></script>
 
     <!-- React (production) + ReactDOM -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
@@ -41,7 +42,7 @@
     <!-- Babel so we can write JSX here -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   </head>
-    <body class="bg-background text-foreground pt-[var(--header-h)]">
+    <body class="bg-background text-foreground pt-[var(--header-h)] pb-[var(--footer-h)]">
     <div id="root"></div>
 
     <script type="text/babel">
